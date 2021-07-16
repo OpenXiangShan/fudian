@@ -208,14 +208,6 @@ class FADD(val expWidth: Int, val precision: Int) extends Module {
   val exp_diff_b_a = Cat(0.U(1.W), raw_b.exp) - Cat(0.U(1.W), raw_a.exp)
   val need_swap = exp_diff_a_b.head(1).asBool()
 
-  // make sure exp_a >= exp_b in near path and far path
-  def swap[T <: Data](swp: Bool, x: T, y: T): (T, T) = {
-    val nx = Mux(swp, y, x)
-    val ny = Mux(swp, x, y)
-    (nx, ny)
-  }
-  val (a, b) = swap(need_swap, raw_a, raw_b)
-
   val ea_minus_eb = Mux(need_swap, exp_diff_b_a.tail(1), exp_diff_a_b.tail(1))
   val sel_far_path = !eff_sub || ea_minus_eb > 1.U
 
@@ -265,7 +257,7 @@ class FADD(val expWidth: Int, val precision: Int) extends Module {
   val far_path_uf = far_path_may_uf & far_path_ix
 
   val rmin =
-    io.rm === RTZ || (io.rm === RDN && !a.sign) || (io.rm === RUP && a.sign)
+    io.rm === RTZ || (io.rm === RDN && !far_path_res.sign) || (io.rm === RUP && far_path_res.sign)
   val far_path_result_exp = Mux(
     far_path_of && rmin,
     ((BigInt(1) << expWidth) - 2).U(expWidth.W),
@@ -276,7 +268,8 @@ class FADD(val expWidth: Int, val precision: Int) extends Module {
     Mux(rmin, Fill(precision - 1, 1.U(1.W)), 0.U((precision - 1).W)),
     far_path_sig_rounded
   )
-  val far_path_result = Cat(a.sign, far_path_result_exp, far_path_result_sig)
+  val far_path_result =
+    Cat(far_path_res.sign, far_path_result_exp, far_path_result_sig)
 
   /*
         Near path
