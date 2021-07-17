@@ -364,24 +364,3 @@ class FADD(val expWidth: Int, val precision: Int) extends Module {
   )
   io.fflags := Cat(iv, dz, of, uf, ix)
 }
-
-object FADD extends App {
-  override def main(args: Array[String]): Unit = {
-    // arg fmt: -td ... 32 / -td ... 64
-    val (expWidth, precision) = args.last match {
-      case "32" =>
-        (8, 24)
-      case "64" =>
-        (11, 53)
-      case _ =>
-        println("usage: runMain fudian.FADD -td <build dir> <ftype>")
-        sys.exit(-1)
-    }
-    (new ChiselStage).execute(
-      args,
-      Seq(
-        ChiselGeneratorAnnotation(() => new FADD(expWidth, precision))
-      )
-    )
-  }
-}
