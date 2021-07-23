@@ -48,6 +48,9 @@ package object fudian {
     }
   }
   object FloatPoint {
+    def expBias(expWidth: Int): BigInt = {
+      (BigInt(1) << (expWidth - 1)) - 1
+    }
     def fromUInt(x: UInt, expWidth: Int, pc: Int): FloatPoint = {
       val fp = Wire(new FloatPoint(expWidth, pc))
       fp.sign := x(expWidth + pc - 1)

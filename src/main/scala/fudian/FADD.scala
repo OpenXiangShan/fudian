@@ -120,17 +120,7 @@ class FarPath(val expWidth: Int, val precision: Int) extends Module {
     (in.a, in.b, in.expDiff, in.effSub, in.smallAdd)
 
   // shamt <- [2, precision + 2]
-  val sig_b_shamt =
-    Mux(
-      expDiff > (precision + 2).U,
-      (precision + 2).U,
-      expDiff(log2Up(precision + 2) - 1, 0)
-    )
-
-  val sig_b_main = Cat(b.sig, 0.U(2.W)) >> sig_b_shamt
-
-  val sticky_mask = ((1.U(1.W) << sig_b_shamt).asUInt() - 1.U)(precision + 1, 2)
-  val sig_b_sticky = (sticky_mask & b.sig).orR()
+  val (sig_b_main, sig_b_sticky) = ShiftRightJam(Cat(b.sig, 0.U(2.W)), expDiff)
 
   val adder_in_sig_b = Cat(0.U(1.W), sig_b_main, sig_b_sticky)
   val adder_in_sig_a = Cat(0.U(1.W), a.sig, 0.U(3.W))
@@ -373,25 +363,4 @@ class FADD(val expWidth: Int, val precision: Int) extends Module {
     )
   )
   io.fflags := Cat(iv, dz, of, uf, ix)
-}
-
-object FADD extends App {
-  override def main(args: Array[String]): Unit = {
-    // arg fmt: -td ... 32 / -td ... 64
-    val (expWidth, precision) = args.last match {
-      case "32" =>
-        (8, 24)
-      case "64" =>
-        (11, 53)
-      case _ =>
-        println("usage: runMain fudian.FADD -td <build dir> <ftype>")
-        sys.exit(-1)
-    }
-    (new ChiselStage).execute(
-      args,
-      Seq(
-        ChiselGeneratorAnnotation(() => new FADD(expWidth, precision))
-      )
-    )
-  }
 }
