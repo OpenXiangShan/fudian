@@ -13,6 +13,7 @@ class RoundingUnit(val width: Int) extends Module {
     val out = Output(UInt(width.W))
     val inexact = Output(Bool())
     val cout = Output(Bool())
+    val r_up = Output(Bool())
   })
 
   val (g, r, s) = (io.in(0).asBool(), io.roundIn, io.stickyIn)
@@ -33,4 +34,5 @@ class RoundingUnit(val width: Int) extends Module {
   io.inexact := inexact
   // r_up && io.in === 111...1
   io.cout := r_up && io.in.andR()
+  io.r_up := r_up
 }

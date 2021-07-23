@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    const char* op_list[] = {"f_to_ui32", "f_toi32", "f_to_ui64", "f_to_i64"};
+    const char* op_list[] = {"f_to_ui32", "f_to_i32", "f_to_ui64", "f_to_i64"};
     int op = get_str_index(argv[2], op_list, 4);
     if(op == -1){
         printf("unknown op: %s\n", argv[2]);
