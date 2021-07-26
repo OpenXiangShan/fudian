@@ -22,7 +22,7 @@ berkeley-testfloat-3/build/Linux-x86_64-GCC/testfloat_gen: berkeley-testfloat-3/
 
 TEST_FLOAT_GEN = berkeley-testfloat-3/build/Linux-x86_64-GCC/testfloat_gen
 SEED ?= $(shell shuf -i 1-100000 -n 1)
-TEST_FLOAT_OPTS = -tininessafter -exact -level 2 -seed $(SEED) -forever
+TEST_FLOAT_OPTS = -tininessafter -exact -level 2 -seed $(SEED)
 BUILD_DIR = $(abspath ./build)
 CSRC_DIR = $(abspath ./src/test/resources/csrc)
 SCALA_SRC = $(shell find ./src/main/scala -name "*.scala")
