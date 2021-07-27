@@ -32,9 +32,14 @@ fadd_tests: f32_add_tests f64_add_tests f32_sub_tests f64_sub_tests
 fn_to_int32_tests: f32_to_ui32_tests f32_to_i32_tests f64_to_ui32_tests f64_to_i32_tests
 fn_to_int64_tests: f32_to_ui64_tests f32_to_i64_tests f64_to_ui64_tests f64_to_i64_tests
 fp_to_int_tests: fn_to_int32_tests fn_to_int64_tests
+
+int32_to_fn_tests: ui32_to_f64_tests i32_to_f64_tests ui32_to_f32_tests i32_to_f32_tests
+int64_to_fn_tests: ui64_to_f64_tests i64_to_f64_tests ui64_to_f32_tests i64_to_f32_tests
+int_to_fp_tests: int32_to_fn_tests int64_to_fn_tests
+
 fcmp_tests: f32_eq_tests f32_le_tests f32_lt_tests f64_eq_tests f64_le_tests f64_lt_tests
 
-all_tests: fadd_tests fp_to_int_tests
+all_tests: fadd_tests fp_to_int_tests int_to_fp_tests fcmp_tests
 
 define test_template
 
@@ -83,6 +88,16 @@ $(eval $(call test_template,f64_to_ui32,FPToInt,64,f_to_ui32))
 $(eval $(call test_template,f64_to_i32,FPToInt,64,f_to_i32))
 $(eval $(call test_template,f32_to_ui32,FPToInt,32,f_to_ui32))
 $(eval $(call test_template,f32_to_i32,FPToInt,32,f_to_i32))
+
+$(eval $(call test_template,ui32_to_f64,IntToFP,64,ui32_to_f))
+$(eval $(call test_template,i32_to_f64,IntToFP,64,i32_to_f))
+$(eval $(call test_template,ui32_to_f32,IntToFP,32,ui32_to_f))
+$(eval $(call test_template,i32_to_f32,IntToFP,32,i32_to_f))
+
+$(eval $(call test_template,ui64_to_f64,IntToFP,64,ui64_to_f))
+$(eval $(call test_template,i64_to_f64,IntToFP,64,i64_to_f))
+$(eval $(call test_template,ui64_to_f32,IntToFP,32,ui64_to_f))
+$(eval $(call test_template,i64_to_f32,IntToFP,32,i64_to_f))
 
 $(eval $(call test_template,f32_eq,FCMP,32,eq))
 $(eval $(call test_template,f32_le,FCMP,32,le))
