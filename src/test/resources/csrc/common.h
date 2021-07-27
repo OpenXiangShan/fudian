@@ -1,6 +1,11 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
+
+#include <stdio.h>
+#include <stdint.h>
+#include <verilated.h>
 #include <string.h>
+
 const char* rounding_modes[] = {
     "-rnear_even",
     "-rminMag", // rtz
@@ -22,4 +27,7 @@ int get_str_index(const char* key, const char* str_lst[], int len) {
     }
     return -1;
 }
+
+double sc_time_stamp() { return 0; }
+
 #endif

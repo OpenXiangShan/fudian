@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <verilated.h>
 #include <VFPToInt.h>
 #include "common.h"
 
