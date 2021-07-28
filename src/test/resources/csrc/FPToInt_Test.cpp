@@ -1,4 +1,4 @@
-#include <VFADD.h>
+#include <VFPToInt.h>
 #include "common.h"
 
 int main(int argc, char* argv[]) {
@@ -13,14 +13,14 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    const char* op_list[] = {"add", "sub"};
-    int op = get_str_index(argv[2], op_list, 2);
+    const char* op_list[] = {"f_to_ui32", "f_to_i32", "f_to_ui64", "f_to_i64"};
+    int op = get_str_index(argv[2], op_list, 4);
     if(op == -1){
         printf("unknown op: %s\n", argv[2]);
         return -1;
     }
 
-    VFADD module;
+    VFPToInt module;
 
     for(int i = 0; i<10; i++){
         module.reset = 1;
@@ -35,27 +35,26 @@ int main(int argc, char* argv[]) {
     module.clock = 1;
     module.eval();
 
-    uint64_t a, b, ref_sum, ref_fflags;
-    uint64_t dut_sum, dut_fflags;
+    uint64_t a, ref_result, ref_fflags;
+    uint64_t dut_result, dut_fflags;
 
     uint64_t cnt = 0;
     uint64_t error = 0;
 
     module.io_rm = rm;
-    module.io_do_sub = op;
-    while(scanf("%lx %lx %lx %lx", &a, &b, &ref_sum, &ref_fflags) != EOF){
+    module.io_op = op;
+    while(scanf("%lx %lx %lx", &a, &ref_result, &ref_fflags) != EOF){
         module.io_a = a;
-        module.io_b = b;
         module.clock = 0;
         module.eval();
         module.clock = 1;
         module.eval();
-        dut_sum = module.io_result;
+        dut_result = module.io_result;
         dut_fflags = module.io_fflags;
-        if( (dut_sum != ref_sum || dut_fflags != ref_fflags) ){
-            printf("[%ld] input: %lx %lx\n", cnt, a, b);
-            printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_sum, dut_fflags);
-            printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_sum, ref_fflags);
+        if( (dut_result != ref_result || dut_fflags != ref_fflags) ){
+            printf("[%ld] input: %lx\n", cnt, a);
+            printf("[%ld] dut_result: %lx dut_fflags: %lx\n", cnt, dut_result, dut_fflags);
+            printf("[%ld] ref_result: %lx ref_fflags: %lx\n", cnt, ref_result, ref_fflags);
             error++;
             return -1;
         }
