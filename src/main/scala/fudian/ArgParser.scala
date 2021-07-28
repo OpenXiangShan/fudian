@@ -33,16 +33,21 @@ object ArgParser {
         expWidth = Some(11)
         precision = Some(53)
         nextArg(tail)
+      case "--ftype" :: "32_64" :: tail =>
+        expWidth = Some(-1)
+        precision = Some(-1)
+        nextArg(tail)
+      case "--ftype" :: "64_32" :: tail =>
+        expWidth = Some(-2)
+        precision = Some(-2)
+        nextArg(tail)
       case unknown :: tail =>
         firrtpOpts :+= unknown
         nextArg(tail)
       case Nil =>
     }
     nextArg(args.toList)
-    if (module.isEmpty || expWidth.isEmpty || precision.isEmpty) {
-      println(help)
-      sys.exit(-1)
-    }
+    require(module.nonEmpty && expWidth.nonEmpty && precision.nonEmpty, help)
     (module.get, expWidth.get, precision.get, firrtpOpts.toArray)
   }
 

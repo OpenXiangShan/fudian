@@ -11,13 +11,24 @@ object Generator extends App {
     precision: Int
   ): () => RawModule = {
     val pkg = this.getClass.getPackageName
-    val c =
-      Class.forName(pkg + "." + name).getConstructor(Integer.TYPE, Integer.TYPE)
-    () =>
-      c.newInstance(
-        expWidth.asInstanceOf[Object],
-        precision.asInstanceOf[Object]
-      ).asInstanceOf[RawModule]
+    name match {
+      case "FPToFP" =>
+        val (inE, inP, oE, oP) = expWidth match {
+          case -1 => (8, 24, 11, 53)
+          case -2 => (11, 53, 8, 24)
+        }
+        () => new FPToFP(inE, inP, oE, oP)
+      case _ =>
+        val c =
+          Class
+            .forName(pkg + "." + name)
+            .getConstructor(Integer.TYPE, Integer.TYPE)
+        () =>
+          c.newInstance(
+            expWidth.asInstanceOf[Object],
+            precision.asInstanceOf[Object]
+          ).asInstanceOf[RawModule]
+    }
   }
 
   override def main(args: Array[String]): Unit = {
