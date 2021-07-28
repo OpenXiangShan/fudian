@@ -36,6 +36,7 @@ fp_to_int_tests: fn_to_int32_tests fn_to_int64_tests
 int32_to_fn_tests: ui32_to_f64_tests i32_to_f64_tests ui32_to_f32_tests i32_to_f32_tests
 int64_to_fn_tests: ui64_to_f64_tests i64_to_f64_tests ui64_to_f32_tests i64_to_f32_tests
 int_to_fp_tests: int32_to_fn_tests int64_to_fn_tests
+fp_to_fp_tests: f64_to_f32_tests f32_to_f64_tests
 
 fcmp_tests: f32_eq_tests f32_le_tests f32_lt_tests f64_eq_tests f64_le_tests f64_lt_tests
 
@@ -105,3 +106,6 @@ $(eval $(call test_template,f32_lt,FCMP,32,lt))
 $(eval $(call test_template,f64_eq,FCMP,64,eq))
 $(eval $(call test_template,f64_le,FCMP,64,le))
 $(eval $(call test_template,f64_lt,FCMP,64,lt))
+
+$(eval $(call test_template,f32_to_f64,FPToFP,32_64))
+$(eval $(call test_template,f64_to_f32,FPToFP,64_32))
