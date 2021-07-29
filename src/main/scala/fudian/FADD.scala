@@ -56,34 +56,22 @@ class NearPath(val expWidth: Int, val precision: Int) extends Module {
   val lzc_str = shift_lim_mask | lza_str
   val lzc = CLZ(lzc_str)
 
-  val int_bit_mask = Wire(Vec(precision + 1, Bool()))
-  for (i <- int_bit_mask.indices) {
-    int_bit_mask(i) := {
-      if (i == int_bit_mask.size - 1) {
-        lzc_str(i)
-      } else {
-        lzc_str(i) & !lzc_str.head(int_bit_mask.size - i - 1).orR()
-      }
-    }
-  }
+  val int_bit_mask = Cat((0 until precision + 1).reverseMap {
+    case i @ `precision` => lzc_str(i)
+    case i               => lzc_str(i) & !lzc_str.head(precision + 1 - i - 1).orR()
+  })
 
   val int_bit_predicted =
-    ((int_bit_mask.asUInt() | lza_str_zero) & sig_raw).orR()
+    ((int_bit_mask | lza_str_zero) & sig_raw).orR()
   val int_bit_rshift_1 =
-    ((int_bit_mask.asUInt() >> 1.U).asUInt() & sig_raw).orR()
+    ((int_bit_mask >> 1.U).asUInt() & sig_raw).orR()
 
-  val exceed_lim_mask = Wire(Vec(precision + 1, Bool()))
-  for (i <- exceed_lim_mask.indices) {
-    exceed_lim_mask(i) := {
-      if (i == exceed_lim_mask.size - 1) {
-        false.B
-      } else {
-        lza_str.head(exceed_lim_mask.size - i - 1).orR()
-      }
-    }
-  }
+  val exceed_lim_mask = Cat((0 until precision + 1).reverseMap {
+    case `precision` => false.B
+    case i           => lza_str.head(precision + 1 - i - 1).orR()
+  })
   val exceed_lim =
-    need_shift_lim && !(exceed_lim_mask.asUInt() & shift_lim_mask).orR()
+    need_shift_lim && !(exceed_lim_mask & shift_lim_mask_raw).orR()
 
   val int_bit =
     Mux(exceed_lim, shift_lim_bit, int_bit_rshift_1 || int_bit_predicted)
