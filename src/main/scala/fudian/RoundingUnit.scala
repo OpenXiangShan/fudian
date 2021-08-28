@@ -36,3 +36,21 @@ class RoundingUnit(val width: Int) extends Module {
   io.cout := r_up && io.in.andR()
   io.r_up := r_up
 }
+
+object RoundingUnit {
+  def apply(in: UInt, rm: UInt, sign: Bool, width: Int): RoundingUnit = {
+    require(in.getWidth >= width)
+    val in_pad = if(in.getWidth < width + 2) padd_tail(in, width + 2) else in
+    val rounder = Module(new RoundingUnit(width))
+    rounder.io.in := in_pad.head(width)
+    rounder.io.roundIn := in_pad.tail(width).head(1).asBool()
+    rounder.io.stickyIn := in_pad.tail(width + 1).orR()
+    rounder.io.rm := rm
+    rounder.io.signIn := sign
+    rounder
+  }
+  def padd_tail(x: UInt, w: Int): UInt = Cat(x, 0.U((w - x.getWidth).W))
+  def is_rmin(rm: UInt, sign: Bool): Bool = {
+    rm === RTZ || (rm === RDN && !sign) || (rm === RUP && sign)
+  }
+}
