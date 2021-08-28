@@ -1,9 +1,9 @@
-#include <VFADD.h>
+#include <VFCMA.h>
 #include "common.h"
 
 int main(int argc, char* argv[]) {
-    if(argc != 3){
-        printf("usage: %s <rounding-mode> <op>\n", argv[0]);
+    if(argc != 2){
+        printf("usage: %s <rounding-mode>\n", argv[0]);
         return -1;
     }
 
@@ -13,14 +13,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    const char* op_list[] = {"add", "sub"};
-    int op = get_str_index(argv[2], op_list, 2);
-    if(op == -1){
-        printf("unknown op: %s\n", argv[2]);
-        return -1;
-    }
-
-    VFADD module;
+    VFCMA module;
 
     for(int i = 0; i<10; i++){
         module.reset = 1;
@@ -35,26 +28,27 @@ int main(int argc, char* argv[]) {
     module.clock = 1;
     module.eval();
 
-    uint64_t a, b, ref_sum, ref_fflags;
-    uint64_t dut_sum, dut_fflags;
+    uint64_t a, b, c, ref_result, ref_fflags;
+    uint64_t dut_result, dut_fflags;
 
     uint64_t cnt = 0;
     uint64_t error = 0;
 
     module.io_rm = rm;
-    while(scanf("%lx %lx %lx %lx", &a, &b, &ref_sum, &ref_fflags) != EOF){
+    while(scanf("%lx %lx %lx %lx %lx", &a, &b, &c, &ref_result, &ref_fflags) != EOF){
         module.io_a = a;
         module.io_b = b;
+        module.io_c = c;
         module.clock = 0;
         module.eval();
         module.clock = 1;
         module.eval();
-        dut_sum = module.io_result;
+        dut_result = module.io_result;
         dut_fflags = module.io_fflags;
-        if( (dut_sum != ref_sum || dut_fflags != ref_fflags) ){
-            printf("[%ld] input: %lx %lx\n", cnt, a, b);
-            printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_sum, dut_fflags);
-            printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_sum, ref_fflags);
+        if( (dut_result != ref_result || dut_fflags != ref_fflags) ){
+            printf("[%ld] input: %lx %lx %lx\n", cnt, a, b, c);
+            printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_result, dut_fflags);
+            printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_result, ref_fflags);
             error++;
             return -1;
         }

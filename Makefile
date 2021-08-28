@@ -11,7 +11,7 @@ reformat:
 	mill -i __.reformat
 
 checkformat:
-	mill -i __.checkFormat 
+	mill -i __.checkFormat
 
 berkeley-softfloat-3/build/Linux-x86_64-GCC/softfloat.a: berkeley-softfloat-3/.git
 	$(MAKE) -C berkeley-softfloat-3/build/Linux-x86_64-GCC SPECIALIZE_TYPE=RISCV
@@ -22,12 +22,14 @@ berkeley-testfloat-3/build/Linux-x86_64-GCC/testfloat_gen: berkeley-testfloat-3/
 
 TEST_FLOAT_GEN = berkeley-testfloat-3/build/Linux-x86_64-GCC/testfloat_gen
 SEED ?= $(shell shuf -i 1-100000 -n 1)
-TEST_FLOAT_OPTS = -tininessafter -exact -level 2 -seed $(SEED)
+TEST_FLOAT_OPTS = -tininessafter -exact -level 1 -seed $(SEED)
 BUILD_DIR = $(abspath ./build)
 CSRC_DIR = $(abspath ./src/test/resources/csrc)
 SCALA_SRC = $(shell find ./src/main/scala -name "*.scala")
 
-fadd_tests: f32_add_tests f64_add_tests f32_sub_tests f64_sub_tests
+fadd_tests: f32_add_tests f64_add_tests
+fmul_tests: f32_mul_tests f64_mul_tests
+fma_tests: f32_mulAdd_tests f64_mulAdd_tests
 
 fn_to_int32_tests: f32_to_ui32_tests f32_to_i32_tests f64_to_ui32_tests f64_to_i32_tests
 fn_to_int64_tests: f32_to_ui64_tests f32_to_i64_tests f64_to_ui64_tests f64_to_i64_tests
@@ -40,7 +42,7 @@ fp_to_fp_tests: f64_to_f32_tests f32_to_f64_tests
 
 fcmp_tests: f32_eq_tests f32_le_tests f32_lt_tests f64_eq_tests f64_le_tests f64_lt_tests
 
-all_tests: fadd_tests fp_to_int_tests int_to_fp_tests fcmp_tests
+all_tests: fadd_tests fmul_tests fma_tests fp_to_int_tests int_to_fp_tests fcmp_tests
 
 define test_template
 
@@ -48,7 +50,7 @@ $(1)_emu = $$(BUILD_DIR)/$(2)_$(3)/$(2).emu
 $(1)_v = $$(BUILD_DIR)/$(2)_$(3)/$(2).v
 
 $$($(1)_v): $$(SCALA_SRC)
-	mill fudian.runMain fudian.Generator --fu $(2) --ftype $(3) --full-stacktrace -td $$(@D)
+	mill -i fudian.runMain fudian.Generator --fu $(2) --ftype $(3) --full-stacktrace -td $$(@D)
 
 $$($(1)_emu): $$($(1)_v) $$(CSRC_DIR)/$(2)_Test.cpp
 	verilator --cc --exe $$^ -Mdir $$(@D) -o $$@ --build
@@ -79,6 +81,12 @@ $(eval $(call test_template,f32_add,FADD,32,add))
 $(eval $(call test_template,f32_sub,FADD,32,sub))
 $(eval $(call test_template,f64_add,FADD,64,add))
 $(eval $(call test_template,f64_sub,FADD,64,sub))
+
+$(eval $(call test_template,f32_mul,FMUL,32))
+$(eval $(call test_template,f64_mul,FMUL,64))
+
+$(eval $(call test_template,f32_mulAdd,FCMA,32))
+$(eval $(call test_template,f64_mulAdd,FCMA,64))
 
 $(eval $(call test_template,f64_to_ui64,FPToInt,64,f_to_ui64))
 $(eval $(call test_template,f64_to_i64,FPToInt,64,f_to_i64))
