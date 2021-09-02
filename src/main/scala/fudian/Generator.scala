@@ -31,13 +31,11 @@ object Generator extends App {
     }
   }
 
-  override def main(args: Array[String]): Unit = {
-    val (module, expWidth, precision, firrtlOpts) = ArgParser.parse(args)
-    (new ChiselStage).execute(
+  val (module, expWidth, precision, firrtlOpts) = ArgParser.parse(args)
+  (new ChiselStage).execute(
       firrtlOpts,
       Seq(
         ChiselGeneratorAnnotation(getModuleGen(module, expWidth, precision))
       )
     )
-  }
 }
