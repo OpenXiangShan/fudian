@@ -6,7 +6,7 @@ import chisel3.util.experimental.decode._
 import fudian.utils._
 
 class FarPath(val expWidth: Int, val precision: Int, val outPc: Int)
-  extends Module {
+    extends Module {
   val io = IO(new Bundle() {
     val in = Input(new Bundle() {
       val a, b = new RawFloat(expWidth, precision)
@@ -74,7 +74,7 @@ class FarPath(val expWidth: Int, val precision: Int, val outPc: Int)
   val tininess = smallAdd && (
     adder_result.tail(1).head(2) === "b00".U ||
       adder_result.tail(1).head(2) === "b01".U && !tininess_rounder.io.cout
-    )
+  )
 
   io.out.tininess := tininess
 
@@ -86,7 +86,7 @@ class FarPath(val expWidth: Int, val precision: Int, val outPc: Int)
 }
 
 class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
-  extends Module {
+    extends Module {
 
   val io = IO(new Bundle() {
     val in = Input(new Bundle() {
@@ -187,7 +187,7 @@ class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
 }
 
 class FCMA_ADD(val expWidth: Int, val precision: Int, val outPc: Int)
-  extends Module {
+    extends Module {
 
   val io = IO(new Bundle() {
     val a, b = Input(UInt((expWidth + precision).W))
@@ -226,7 +226,8 @@ class FCMA_ADD(val expWidth: Int, val precision: Int, val outPc: Int)
     FloatPoint.defaultNaNUInt(expWidth, outPc),
     Cat(
       Mux(decode_a.isInf, fp_a.sign, fp_b.sign),
-      ~0.U(expWidth.W), 0.U((outPc - 1).W)
+      ~0.U(expWidth.W),
+      0.U((outPc - 1).W)
     )
   )
   val special_path_iv = special_path_hasSNaN || special_path_inf_iv
@@ -244,8 +245,6 @@ class FCMA_ADD(val expWidth: Int, val precision: Int, val outPc: Int)
         Far path
    */
 
-  // it's not necessary to start two possible far path calculation in parallel
-  // one far path is enough because near path is slower
   val far_path_inputs = Seq(
     (
       Mux(!need_swap, raw_a, raw_b),
@@ -284,11 +283,13 @@ class FCMA_ADD(val expWidth: Int, val precision: Int, val outPc: Int)
   val far_path_mul_of = b_flags.overflow || (decode_b.expIsOnes && !eff_sub)
   val far_path_may_uf = far_path_out.tininess && !far_path_mul_of
 
-  val far_path_of_before_round = far_path_exp === ((BigInt(1) << expWidth) - 1).U
+  val far_path_of_before_round =
+    far_path_exp === ((BigInt(1) << expWidth) - 1).U
   val far_path_of_after_round = far_path_rounder.io.cout &&
     far_path_exp === ((BigInt(1) << expWidth) - 2).U
 
-  val far_path_of = far_path_of_before_round || far_path_of_after_round || far_path_mul_of
+  val far_path_of =
+    far_path_of_before_round || far_path_of_after_round || far_path_mul_of
   val far_path_ix = far_path_rounder.io.inexact | far_path_of
   val far_path_uf = far_path_may_uf & far_path_ix
 
@@ -299,14 +300,11 @@ class FCMA_ADD(val expWidth: Int, val precision: Int, val outPc: Int)
         Near path
    */
 
-  // near path is the critical path
-  // to get better performance
-  // we start 4 possible calculations in parallel
+  val near_path_exp_neq = raw_a.exp(1, 0) =/= raw_b.exp(1, 0)
+
   val near_path_inputs = Seq(
-    (raw_a, raw_b, false.B),
-    (raw_a, raw_b, true.B),
-    (raw_b, raw_a, false.B),
-    (raw_b, raw_a, true.B)
+    (raw_a, raw_b, near_path_exp_neq),
+    (raw_b, raw_a, near_path_exp_neq)
   )
   val near_path_mods = near_path_inputs.map { in =>
     val near_path = Module(new NearPath(expWidth, precision, outPc))
@@ -316,20 +314,12 @@ class FCMA_ADD(val expWidth: Int, val precision: Int, val outPc: Int)
     near_path.io.in.rm := io.rm
     near_path
   }
-  val exp_eq = raw_a.exp === raw_b.exp
-  /*
-      exp_eq => (a - b, b - a)
-      expa > expb => a - b_shift
-      expb > expa => b - a_shift
-   */
-  val near_path_out = Mux1H(
-    Seq(
-      exp_eq && !near_path_mods.head.io.out.a_lt_b, // exp_eq && a_sig >= b_sig
-      !exp_eq && !need_swap, // expa > expb
-      exp_eq && near_path_mods.head.io.out.a_lt_b, // exp_eq && a_sig < b_sig
-      need_swap // expb > expa
-    ),
-    near_path_mods.map(_.io.out)
+
+  val near_path_a_lt_b = near_path_mods.head.io.out.a_lt_b
+  val near_path_out = Mux(
+    need_swap || (!near_path_exp_neq && near_path_a_lt_b),
+    near_path_mods.last.io.out,
+    near_path_mods.head.io.out
   )
 
   val near_path_res = near_path_out.result
@@ -375,8 +365,10 @@ class FCMA_ADD(val expWidth: Int, val precision: Int, val outPc: Int)
   )
   val common_overflow_sig =
     Mux(rmin, Fill(outPc - 1, 1.U(1.W)), 0.U((outPc - 1).W))
-  val common_underflow = sel_far_path && far_path_uf || !sel_far_path && near_path_uf
-  val common_inexact = sel_far_path && far_path_ix || !sel_far_path && near_path_ix
+  val common_underflow =
+    sel_far_path && far_path_uf || !sel_far_path && near_path_uf
+  val common_inexact =
+    sel_far_path && far_path_ix || !sel_far_path && near_path_ix
   val common_fflags = Cat(
     false.B,
     false.B,
