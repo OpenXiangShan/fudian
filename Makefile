@@ -30,6 +30,7 @@ SCALA_SRC = $(shell find ./src/main/scala -name "*.scala")
 fadd_tests: f32_add_tests f64_add_tests
 fmul_tests: f32_mul_tests f64_mul_tests
 fma_tests: f32_mulAdd_tests f64_mulAdd_tests
+fdiv_tests: f32_div_tests f64_div_tests
 
 fn_to_int32_tests: f32_to_ui32_tests f32_to_i32_tests f64_to_ui32_tests f64_to_i32_tests
 fn_to_int64_tests: f32_to_ui64_tests f32_to_i64_tests f64_to_ui64_tests f64_to_i64_tests
@@ -53,7 +54,7 @@ $$($(1)_v): $$(SCALA_SRC)
 	mill -i fudian.runMain fudian.Generator --fu $(2) --ftype $(3) --full-stacktrace -td $$(@D)
 
 $$($(1)_emu): $$($(1)_v) $$(CSRC_DIR)/$(2)_Test.cpp
-	verilator --cc --exe $$^ -Mdir $$(@D) -o $$@ --build
+	verilator --cc --exe --trace $$^ -Mdir $$(@D) -o $$@ --build
 
 $(1)_test_rnear_even: $$($(1)_emu)
 	$$(TEST_FLOAT_GEN) $$(TEST_FLOAT_OPTS) $(1) -rnear_even | $$< -rnear_even $(4)
@@ -87,6 +88,12 @@ $(eval $(call test_template,f64_mul,FMUL,64))
 
 $(eval $(call test_template,f32_mulAdd,FCMA,32))
 $(eval $(call test_template,f64_mulAdd,FCMA,64))
+
+$(eval $(call test_template,f32_div,FDIV,32,div))
+$(eval $(call test_template,f64_div,FDIV,64,div))
+
+$(eval $(call test_template,f32_sqrt,FDIV,32,sqrt))
+$(eval $(call test_template,f64_sqrt,FDIV,64,sqrt))
 
 $(eval $(call test_template,f64_to_ui64,FPToInt,64,f_to_ui64))
 $(eval $(call test_template,f64_to_i64,FPToInt,64,f_to_i64))
