@@ -84,6 +84,12 @@ package object fudian {
       inner.sig := Cat(nz, fp.sig)
       inner
     }
+
+    def fromUInt(x: UInt, expWidth: Int, precision: Int): RawFloat = {
+      val fp = FloatPoint.fromUInt(x, expWidth, precision)
+      val raw = fromFP(fp)
+      raw
+    }
   }
 
 }

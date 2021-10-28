@@ -54,3 +54,24 @@ object RoundingUnit {
     rm === RTZ || (rm === RDN && !sign) || (rm === RUP && sign)
   }
 }
+
+class TininessRounder(expWidth: Int, precision: Int) extends Module {
+
+  val io = IO(new Bundle() {
+    val in = Input(new RawFloat(expWidth, precision + 3))
+    val rm = Input(UInt(3.W))
+    val tininess = Output(Bool())
+  })
+
+  val rounder = RoundingUnit(
+    io.in.sig.tail(2),
+    io.rm,
+    io.in.sign,
+    precision - 1
+  )
+
+  val tininess = io.in.sig.head(2) === "b00".U(2.W) ||
+    (io.in.sig.head(2) === "b01".U(2.W) && !rounder.io.cout)
+
+  io.tininess := tininess
+}
