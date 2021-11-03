@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     Verilated::traceEverOn(true);
     VerilatedVcdC* tfp = new VerilatedVcdC;
     module.trace(tfp, 99);  // Trace 99 levels of hierarchy
-    tfp->open("/bigdata/lqr/simx.vcd");
+//    tfp->open("/bigdata/lqr/simx.vcd");
 
     for(int i = 0; i<10; i++){
         module.reset = 1;
@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
     }
     module.reset = 0;
     module.clock = 0;
+    module.io_specialIO_in_valid = 0;
     contextp->timeInc(1);
     module.eval();
     tfp->dump(contextp->time());
@@ -52,14 +53,14 @@ int main(int argc, char* argv[]) {
     uint64_t cnt = 0;
     uint64_t error = 0;
 
-    while(scanf("%lx %lx %lx %lx", &a, &b, &ref_result, &ref_fflags) != EOF){
+    while(op == 0 && (scanf("%lx %lx %lx %lx", &a, &b, &ref_result, &ref_fflags) != EOF)){
         module.clock = 0;
-                module.io_a = a;
-                module.io_b = b;
-                module.io_specialIO_isSqrt = op;
-                module.io_rm = rm;
-                module.io_specialIO_in_valid = 1;
-                module.io_specialIO_out_ready = 1;
+        module.io_a = a;
+        module.io_b = b;
+        module.io_specialIO_isSqrt = op;
+        module.io_rm = rm;
+        module.io_specialIO_in_valid = 1;
+        module.io_specialIO_out_ready = 1;
         contextp->timeInc(1);
         module.eval();
         tfp->dump(contextp->time());
@@ -82,6 +83,45 @@ int main(int argc, char* argv[]) {
         dut_fflags = module.io_fflags;
         if( (dut_result != ref_result || dut_fflags != ref_fflags) ){
             printf("[%ld] input: %lx %lx\n", cnt, a, b);
+            printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_result, dut_fflags);
+            printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_result, ref_fflags);
+            error++;
+            tfp->close();
+            return -1;
+        }
+        cnt++;
+    }
+
+    while(op == 1 && (scanf("%lx %lx %lx", &a, &ref_result, &ref_fflags) != EOF)){
+        module.clock = 0;
+        module.io_a = a;
+        module.io_b = 0;
+        module.io_specialIO_isSqrt = op;
+        module.io_rm = rm;
+        module.io_specialIO_in_valid = 1;
+        module.io_specialIO_out_ready = 1;
+        contextp->timeInc(1);
+        module.eval();
+        tfp->dump(contextp->time());
+
+        module.clock = 1;
+        contextp->timeInc(1);
+        module.eval();
+        tfp->dump(contextp->time());
+        while(!module.io_specialIO_out_valid){
+            module.clock = 0;
+            contextp->timeInc(1);
+            module.eval();
+            tfp->dump(contextp->time());
+            module.clock = 1;
+            contextp->timeInc(1);
+            module.eval();
+            tfp->dump(contextp->time());
+        }
+        dut_result = module.io_result;
+        dut_fflags = module.io_fflags;
+        if( (dut_result != ref_result || dut_fflags != ref_fflags) ){
+            printf("[%ld] input: %lx\n", cnt, a);
             printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_result, dut_fflags);
             printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_result, ref_fflags);
             error++;

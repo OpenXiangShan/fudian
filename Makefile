@@ -31,6 +31,7 @@ fadd_tests: f32_add_tests f64_add_tests
 fmul_tests: f32_mul_tests f64_mul_tests
 fma_tests: f32_mulAdd_tests f64_mulAdd_tests
 fdiv_tests: f32_div_tests f64_div_tests
+fsqrt_tests: f32_sqrt_tests f64_sqrt_tests
 
 fn_to_int32_tests: f32_to_ui32_tests f32_to_i32_tests f64_to_ui32_tests f64_to_i32_tests
 fn_to_int64_tests: f32_to_ui64_tests f32_to_i64_tests f64_to_ui64_tests f64_to_i64_tests

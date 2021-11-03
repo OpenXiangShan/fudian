@@ -72,6 +72,51 @@ object mLookupTable {
   )
 }
 
+object mLookupTable2 {
+  val minus_m = Seq(
+    TruthTable(Seq( // -m[-1]
+      BitPat(0.U(3.W)) -> BitPat("b00_1101".U(6.W)),
+      BitPat(1.U(3.W)) -> BitPat("b00_1110".U(6.W)),
+      BitPat(2.U(3.W)) -> BitPat("b01_0000".U(6.W)),
+      BitPat(3.U(3.W)) -> BitPat("b01_0001".U(6.W)),
+      BitPat(4.U(3.W)) -> BitPat("b01_0010".U(6.W)),
+      BitPat(5.U(3.W)) -> BitPat("b01_0100".U(6.W)),
+      BitPat(6.U(3.W)) -> BitPat("b01_0110".U(6.W)),
+      BitPat(7.U(3.W)) -> BitPat("b01_0111".U(6.W))
+    ), BitPat.dontCare(6)),
+    TruthTable(Seq( // -m[0]
+      BitPat(0.U(3.W)) -> BitPat("b00_0100".U(6.W)),
+      BitPat(1.U(3.W)) -> BitPat("b00_0101".U(6.W)),
+      BitPat(2.U(3.W)) -> BitPat("b00_0110".U(6.W)),
+      BitPat(3.U(3.W)) -> BitPat("b00_0110".U(6.W)),
+      BitPat(4.U(3.W)) -> BitPat("b00_0110".U(6.W)),
+      BitPat(5.U(3.W)) -> BitPat("b00_1000".U(6.W)),
+      BitPat(6.U(3.W)) -> BitPat("b00_1000".U(6.W)),
+      BitPat(7.U(3.W)) -> BitPat("b00_1000".U(6.W))
+    ), BitPat.dontCare(6)),
+    TruthTable(Seq( //-m[1]
+      BitPat(0.U(3.W)) -> BitPat("b11_1100".U(6.W)),
+      BitPat(1.U(3.W)) -> BitPat("b11_1100".U(6.W)),
+      BitPat(2.U(3.W)) -> BitPat("b11_1100".U(6.W)),
+      BitPat(3.U(3.W)) -> BitPat("b11_1100".U(6.W)),
+      BitPat(4.U(3.W)) -> BitPat("b11_1010".U(6.W)),
+      BitPat(5.U(3.W)) -> BitPat("b11_1010".U(6.W)),
+      BitPat(6.U(3.W)) -> BitPat("b11_1000".U(6.W)),
+      BitPat(7.U(3.W)) -> BitPat("b11_1000".U(6.W))
+    ), BitPat.dontCare(6)),
+    TruthTable(Seq( //-m[2]
+      BitPat(0.U(3.W)) -> BitPat("b11_0100".U(6.W)),
+      BitPat(1.U(3.W)) -> BitPat("b11_0010".U(6.W)),
+      BitPat(2.U(3.W)) -> BitPat("b11_0000".U(6.W)),
+      BitPat(3.U(3.W)) -> BitPat("b11_0000".U(6.W)),
+      BitPat(4.U(3.W)) -> BitPat("b10_1110".U(6.W)),
+      BitPat(5.U(3.W)) -> BitPat("b10_1100".U(6.W)),
+      BitPat(6.U(3.W)) -> BitPat("b10_1100".U(6.W)),
+      BitPat(7.U(3.W)) -> BitPat("b10_1010".U(6.W))
+    ), BitPat.dontCare(6))
+  )
+}
+
 class FDIVSpecialIO extends Bundle {
   val in_valid, out_ready = Input(Bool())
   val in_ready, out_valid = Output(Bool())
@@ -113,7 +158,7 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
 
   // consts
   val len = precision
-  val lzc_width = log2Up(precision+1) // 0-22 is the actual number we need to shift
+  val lzc_width = log2Up(precision+1)
   val itn_len = 1 + len + 2 + 1 // TODO
   val state_num = 6
 
@@ -153,7 +198,7 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   val hasSubnormal = aSub || (~sqrt && dSub) // todo use wire not reg
   val sqrtReg = RegEnable(isSqrt, state(s_idle))
   val rmReg = RegEnable(io.rm, state(s_idle))
-  val resSignReg = RegEnable(Mux(sqrt, false.B, aSign ^ dSign), state(s_idle))
+  val resSignReg = RegEnable(Mux(sqrt, Mux(decode_a.isZero, aSign, false.B), aSign ^ dSign), state(s_idle))
 
   // TODO: sqrt always gets Normal results!
   when(io.specialIO.kill) {
@@ -187,7 +232,7 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
 
   aSigNorm := aSigReg << aLZC
   val dLZC = CLZ(dSigReg)
-  dSigNorm := dSigReg << aLZC
+  dSigNorm := dSigReg << dLZC
   aExpFix := aExp - aLZC
   dExpFix := dExp - dLZC
   // special cases
@@ -195,9 +240,12 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   // detected at pre_1: overflow, underflow(except one case)
   // detected at rounding: inexact
   // detect after rounding: underflow
-  val inv = RegEnable(Mux(isSqrt, fp_a.sign || decode_a.isNaN, (decode_b.isZero && decode_a.isZero) || decode_a.isNaN || decode_b.isNaN), state(s_idle))
+  val inv = RegEnable(Mux(isSqrt, (fp_a.sign && !decode_a.isZero) || decode_a.isNaN, (decode_a.isInf && decode_b.isInf) || (decode_b.isZero && decode_a.isZero) || decode_a.isNaN || decode_b.isNaN), state(s_idle))
+  val inv_flag = RegEnable(Mux(isSqrt, (fp_a.sign && !decode_a.isQNaN&& !decode_a.isZero) || decode_a.isSNaN, (decode_a.isInf && decode_b.isInf) || (decode_b.isZero && decode_a.isZero) || (decode_a.isSNaN) || (decode_b.isSNaN)), state(s_idle))
   val dz = RegEnable(decode_b.isZero && !decode_a.isZero && !isSqrt, state(s_idle))
   val zero_div = RegEnable(decode_a.isZero && (!decode_b.isZero || isSqrt), state(s_idle)) // exact zero
+  val div_inf = RegEnable(!isSqrt && decode_b.isInf && !decode_a.isInf, state(s_idle))
+  val inf_div = RegEnable(Mux(isSqrt, decode_a.isInf, decode_a.isInf && !decode_b.isInf), state(s_idle))
 
   // s_pre_1
   // obtain final exp and 0st iter result
@@ -205,40 +253,39 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   val sigCmp = aSigReg < dSigReg
 //  val sigCmpReg = RegEnable(sigCmp, state(s_pre_1))
   val divFinalExp = (SignExt(aExp, expWidth+2) + ~SignExt(dExp, expWidth+2)) + (~sigCmp).asUInt
-  val sqrtShift = aExp(0)
-  val sqrtFinalExp = SignExt((aExp + 1.U) >> 1, expWidth + 2) // TODO minus expBias
+  val sqrtShift = !aExp(0)
+  val sqrtFinalExp = SignExt((aExp - FloatPoint.expBias(expWidth).U) >> 1, expWidth + 2) // TODO minus expBias
   val finalExp = Mux(sqrtReg, sqrtFinalExp, divFinalExp) // todo finalExpReg
 
-  // TODO: rewrite these
-  val zeroRes = (finalExp + (FloatPoint.expBias(expWidth)+precision+1).U).head(1).asBool // inexact zero
-  val infRes = ((FloatPoint.maxNormExp(expWidth)+2).U + ~finalExp).head(1).asBool
+  val zeroRes = (finalExp + (FloatPoint.expBias(expWidth)+precision).U).head(1).asBool // inexact zero
+  val infRes = (~finalExp + (FloatPoint.maxNormExp(expWidth) - FloatPoint.expBias(expWidth) + 1).U).head(1).asBool
   val subRes = (finalExp + (FloatPoint.expBias(expWidth)-1).U).head(1).asBool && ~zeroRes
   val normRes = (~(FloatPoint.expBias(expWidth)).U + 2.U + ~finalExp).head(1).asBool && ~infRes
   val subResReg = RegEnable(subRes, state(s_pre_1))
 
-  val overflow = infRes && !inv && !dz
-  val underflow_pre = zeroRes && !inv && !dz && !zero_div
-  val inexact_pre = !zero_div && !inv && !dz
+  val overflow = infRes && !inv && !dz && !inf_div
+  val underflow_pre = zeroRes && !inv && !dz && !zero_div && !div_inf
+  val inexact_pre = !zero_div && !inv && !dz && !div_inf && !inf_div
 
-  val special_fflags = RegEnable(Cat(inv, dz, overflow, underflow_pre, inexact_pre), state(s_pre_1))
+  val special_fflags = RegEnable(Cat(inv_flag, dz && !inv && !inf_div, overflow, underflow_pre, inexact_pre), state(s_pre_1))
   val special_sign = RegEnable(Mux(inv, false.B, resSignReg), state(s_pre_1))
-  val special_exp = RegEnable(Mux(underflow_pre || zero_div, 0.U(expWidth.W), Fill(expWidth, true.B)), state(s_pre_1))
+  val special_exp = RegEnable(Mux(inv || overflow || dz || inf_div, Fill(expWidth, true.B), 0.U(expWidth.W)), state(s_pre_1)) // put inv first
   val special_sig = RegEnable(Mux(inv, 1.U << (precision-2), 0.U(expWidth.W)), state(s_pre_1))
   val special_result = Cat(special_sign, special_exp, special_sig)
 
-  skipIter := overflow || underflow_pre || inv || dz || zeroRes || zero_div
+  skipIter := overflow || underflow_pre || inv || dz || zeroRes || zero_div || div_inf || inf_div// TODO div_inf and inf_div
   val skipIterReg = RegEnable(skipIter, state(s_pre_1))
 
-  val subResBits = finalExp - (FloatPoint.expBias(expWidth)+precision+1).U
+  val subResBits = finalExp + (FloatPoint.expBias(expWidth)+precision).U // TODO sig cmp
   val normResBits = (precision+1).U
 
-  val resultSigBits = Mux(subRes, subResBits, normResBits)// with one round bit
+  val resultSigBits = Mux(subRes, subResBits, normResBits) // with one round bit
   val resultSigBitsReg = RegEnable(resultSigBits, state(s_pre_1))  
-  val needShift = !resultSigBits(0) //
-  val needShiftReg = RegEnable(needShift, state(s_pre_1))
-  val oddIterReg = RegEnable(resultSigBits(1) ^ resultSigBits(0), state(s_pre_1))
-  val iterNum = Wire(UInt((lzc_width-2).W))
-  val iterNumInit = (resultSigBits + 1.U) >> 2 // TODO
+  val needShift = Mux(sqrtReg, resultSigBits(0), !resultSigBits(0)) //
+  val needShiftReg = RegEnable(needShift, state(s_pre_1)) //
+  val oddIterReg = RegEnable(!resultSigBits(1), state(s_pre_1))
+  val iterNum = Wire(UInt((lzc_width-1).W))
+  val iterNumInit = Mux(sqrtReg, (resultSigBits -1.U) >> 1, (resultSigBits) >> 2) // TODO
   val iterNumReg = RegEnable(iterNum, state(s_pre_1) || state(s_iter))
   iterNum := Mux(state(s_pre_1), iterNumInit, iterNumReg - 1.U)
   finalIter := iterNumReg === 0.U
@@ -252,7 +299,7 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   divModule.io.sigCmp := sigCmp
 
   val sqrtModule = Module(new SqrtIterModule(len, itn_len+1))
-  sqrtModule.io.a := Mux(sqrtShift, Cat(0.U(1.W), aSigReg), Cat(aSigReg, 0.U(1.W)))
+  sqrtModule.io.a := Mux(!sqrtShift, Cat(0.U(1.W), aSigReg), Cat(aSigReg, 0.U(1.W)))
   sqrtModule.io.state := Cat(state(s_iter), state(s_pre_1))
   
   // Recovery
@@ -260,24 +307,32 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   quotM1Iter := Mux(sqrtReg, sqrtModule.io.resM1, divModule.io.quotM1)
 
   // post_1
-  val r = Mux(sqrtReg, sqrtModule.io.rem, SignExt(divModule.io.rem, itn_len+1)) // todo fix this
-  val qFinal = Mux(r.head(1).asBool, quotM1Iter, quotIter)
+  val r = Mux(sqrtReg, SignExt(sqrtModule.io.rem, itn_len+1), SignExt(divModule.io.rem, itn_len+1)) // TODO fix this
+  val qFinal = Mux(r.head(1).asBool, quotM1Iter, quotIter) //
   val sticky = (r.orR()) || (needShiftReg && qFinal(0)) // if non-zero remainder( which must be positive), we
   val round = Mux(needShiftReg, qFinal(1).asBool(), qFinal(0).asBool)
-  val rounder = Module(new RoundingUnit(precision))
-  rounder.io.in := Mux(needShiftReg, qFinal(precision+1, 2), qFinal(precision, 1))
+  val rounder = Module(new RoundingUnit(precision-1))
+  rounder.io.in := Mux(needShiftReg, qFinal(precision, 2), qFinal(precision-1, 1))
   rounder.io.stickyIn := sticky
   rounder.io.roundIn := round
   rounder.io.signIn := resSignReg
   rounder.io.rm := rmReg
-  val resExp = Mux(subRes, 0.U, finalExp + FloatPoint.expBias(expWidth).U)(expWidth-1, 0)
-  val resExpReg = RegEnable(Mux(rounder.io.cout, resExp + 1.U, resExp), state(s_post_0))
-  val resSigReg = RegEnable(rounder.io.out, state(s_post_0))
+
+  val resExp = Mux(subResReg, 0.U, finalExp + FloatPoint.expBias(expWidth).U)(expWidth-1, 0)
+  val resExpReg = RegEnable(Mux(rounder.io.cout && (resExp =/= FloatPoint.maxNormExp(expWidth).U), resExp + 1.U, resExp), state(s_post_0))
+  val resSigReg = RegEnable(Mux(rounder.io.cout && (resExp === FloatPoint.maxNormExp(expWidth).U), rounder.io.in ,rounder.io.out), state(s_post_0))
   val inexact = rounder.io.inexact
-  val uf = !resExp.orR()
-  val of = resExp.andR()
-  val normal_fflags = RegEnable(Cat(0.U(2.W), of, uf, inexact), !state(s_post_0))
-  io.result := Mux(skipIterReg, special_result, Cat(resSignReg, resExpReg, resSigReg(precision - 2, 0)))  // TODO res sign bit is normalized so remove 1 at front
+  val uf = !resExp.orR && inexact // TODO
+  val of = resExp.andR
+  val normal_fflags = RegEnable(Cat(0.U(2.W), of, uf, inexact), state(s_post_0))
+
+  // in rmin rmax rminMag no infs
+  val noInf = (rmReg === RTZ || (rmReg === RDN && !resSignReg) || (rmReg === RUP && resSignReg)) && special_fflags(2)
+  val noZero = ((rmReg === RDN && resSignReg) || (rmReg === RUP && !resSignReg)) && special_fflags(1)
+  val specialInf = noInf || noZero
+  val specialInfResult = Mux(noInf, Cat(resSignReg, FloatPoint.maxNormExp(expWidth).U, Fill(precision-1, true.B)), Cat(resSignReg, 0.U(expWidth.W), 1.U((precision - 1).W)))
+
+  io.result := Mux(specialInf, specialInfResult, Mux(skipIterReg, special_result, Cat(resSignReg, resExpReg, resSigReg(precision - 2, 0))))  // TODO subnormal occasions
   io.fflags := Mux(skipIterReg, special_fflags, normal_fflags)
 }
 
@@ -335,8 +390,8 @@ class DivIterModule(len: Int, itn_len: Int) extends Module {
   val qNext2 = Wire(UInt(5.W))
   val wsIter = Wire(UInt(itn_len.W)) // (1, 67)
   val wcIter = Wire(UInt(itn_len.W))
-  val quotIter = Wire(UInt((len+1).W)) // TODO preshift a for even res bits
-  val quotM1Iter = Wire(UInt((len+1).W))
+  val quotIter = Wire(UInt((len+2).W))
+  val quotM1Iter = Wire(UInt((len+2).W))
 
   // Input Regs of whole Spec + Sel + sum adder block
   val qPrevReg = RegEnable(Mux(state(s_pre_1), qInit, qNext2), state(s_pre_1) | state(s_iter))
@@ -429,82 +484,129 @@ class DivIterModule(len: Int, itn_len: Int) extends Module {
   quotIter := Mux(state(s_iter), quotIterNext, 0.U(len.W))
   quotM1Iter := Mux(state(s_iter), quotM1IterNext, 0.U(len.W))
 
-  io.rem := wsReg + wcReg
+  io.rem := wsReg + wcReg // (2,
   io.quot := quotIterReg
   io.quotM1 := quotM1IterReg
 }
 
-class SqrtIterModule(len: Int, itn_len: Int) extends Module {
+class SqrtIterModule(len: Int, itn_len: Int) extends Module { // itn_len == len + 5
   val io = IO(new Bundle{
-    val a = Input(UInt((len+1).W)) // because of odd exponents
+    val a = Input(UInt((len+1).W)) // because of odd exponents (.1xxx or .01xx)
     val state = Input(UInt(2.W)) // 01 for pre and 10 for iter
-    val rem = Output(UInt(itn_len.W)) // this itn_len is diffferent
+    val rem = Output(UInt((itn_len-2).W)) // this itn_len is diffferent
     val res = Output(UInt((len+2).W))
     val resM1 = Output(UInt((len+2).W))
   })
+
+  // y is truncated wj
   val state = io.state
   val (s_pre_1, s_iter) = (0, 1)
 
   val aInit = 1.U
   val bInit = 0.U
-  val wsInit = Cat(1.U(1.W), io.a)
+  val wsInit = Cat(3.U(2.W), io.a) // 11.1xxx or 11.01xx
   val wcInit = 0.U
 
   val aIter = Wire(UInt((len+2).W))
   val bIter = Wire(UInt((len+2).W))
-  val wsIter = Wire(UInt((itn_len).W))
-  val wcIter = Wire(UInt((itn_len).W))
+  val wsIter = Wire(UInt((itn_len-2).W))
+  val wcIter = Wire(UInt((itn_len-2).W))
   val s = Wire(UInt(5.W))
-  val f = Wire(UInt(itn_len.W))
+  val f = Wire(UInt(itn_len.W)) // (3, itn_len-3) or (3, len+1)
+  val j = Wire(UInt(32.W)) // TODO do not hardcode this
 
   val aReg = RegEnable(Mux(state(s_pre_1), aInit, aIter), state(s_pre_1) || state(s_iter))
-  val bReg = RegEnable(Mux(state(s_pre_1), bInit, bIter), state(s_pre_1) || state(s_iter))
-  val wsReg = RegEnable(Mux(state(s_pre_1), wsInit, wsIter), state(s_pre_1) || state(s_iter))
+  val bReg = RegEnable(Mux(state(s_pre_1), bInit, bIter), state(s_pre_1) || state(s_iter)) // (1, len+1)
+  val wsReg = RegEnable(Mux(state(s_pre_1), wsInit, wsIter), state(s_pre_1) || state(s_iter)) // (2, len+1)
   val wcReg = RegEnable(Mux(state(s_pre_1), wcInit, wcIter), state(s_pre_1) || state(s_iter))
 
-  val iterCnt = Wire(UInt(2.W)) 
-  val iterCntReg = RegEnable(iterCnt, state(s_pre_1) || state(s_iter)) // i for j=i, 3 for j>=3
-  iterCnt := Mux(state(s_pre_1), 0.U, Mux(iterCntReg === 3.U, iterCntReg, iterCntReg + 1.U))
-  val lookupConstReg = RegEnable(aReg(4, 2), iterCntReg === 2.U)
-  val lookup = MuxLookup(iterCntReg, "b100".U, Array(
-      0.U -> "b101".U,
-      1.U -> Cat(aReg(0), 0.U(2.W)),
-      2.U -> aReg(2, 0),
-      3.U -> lookupConstReg
-  ))
+  val jReg = RegEnable(Mux(state(s_pre_1), 1.U, j+1.U), state(s_pre_1) || state(s_iter))
+  j := jReg
+
+//  val lookupConstReg = RegEnable(aReg >> ((j - 3.U) << 1), aReg((jReg - 1.U) << 1) || (jReg === 4.U)) // TODO dont hardwire this
+  val lookup = MuxLookup(jReg, Mux(aReg((jReg - 1.U) << 1), "b111".U(3.W), aReg >> ((jReg - 3.U) << 1)), Array(
+      1.U -> "b101".U,
+      2.U -> Mux(!aReg(2), Cat(aReg(0), 0.U(2.W)), "b111".U(3.W)),
+      3.U -> Mux(!aReg(4), aReg(2, 0), "b111".U(3.W)),
+      4.U -> Mux(!aReg((jReg - 1.U) << 1), aReg(4, 2), "b111".U(3.W))
+  )) // TODO check A0
 
   val mNeg = VecInit(Seq.tabulate(4){i =>
-    Cat(SignExt(decoder(QMCMinimizer, lookup, mLookupTable.minus_m(i)), 8), 0.U(1.W))
-  }) // (2, 4) -> (4, 5)
+    Cat(SignExt(decoder(QMCMinimizer, lookup, mLookupTable2.minus_m(i)), 7), 0.U(1.W))
+  }) // (2, 4) * 2 -> (4, 4)
+
+  // Debug Utils
+//  when(state === 1.U) {
+//    printf(
+//      p"\nINIT:\nio.a is ${Binary(io.a)}\nwsInit is ${Binary(wsInit.head(2))}.${Binary(wsInit.tail(2))}\n")
+//  }
+//  when(state === 2.U) {
+//    printf(
+//      p"***** ITER NUM J is ${jReg} *****\n" +
+//        p"ws is ${Binary(wsReg.head(2))}.${Binary(wsReg.tail(2))}\n" +
+//        p"wc is ${Binary(wcReg.head(2))}.${Binary(wcReg.tail(2))}\n" +
+////        p"-m is ${Binary(csa.io.in(2).head(4))}.${Binary(csa.io.in(2).tail(4))}\n" +
+//        p" A is ${Binary(aReg)}\n" +
+//        p" B is ${Binary(bReg)}\n"
+//    )
+//  }
 
   val signs = VecInit(Seq.tabulate(4){ i => {
-    val csa = Module(new CSA3_2(9)).suggestName(s"csa_sel_${i}")
-    csa.io.in(0) := wsReg << 2
-    csa.io.in(1) := wcReg << 2
+    val csa = Module(new CSA3_2(8)).suggestName(s"csa_sel_${i}")
+    csa.io.in(0) := wsReg.head(8) // wsReg << 2 (4, 4)
+    csa.io.in(1) := wcReg.head(8)
     csa.io.in(2) := mNeg(i)
-    (csa.io.out(0) + (csa.io.out(1)(7, 0) << 1))(8)
+
+//    // debug utils
+//    when (jReg < 8.U && jReg > 4.U) {
+//      when(state === 2.U) {
+//        printf(s"=== csa_sel_${i} ===\n")
+//        printf(
+//          p"state is ${Binary(state)}\n" +
+//            p"ws is ${Binary(csa.io.in(0).head(4))}.${Binary(csa.io.in(0).tail(4))}\n" +
+//            p"wc is ${Binary(csa.io.in(1).head(4))}.${Binary(csa.io.in(1).tail(4))}\n" +
+//            p"-m is ${Binary(csa.io.in(2).head(4))}.${Binary(csa.io.in(2).tail(4))}\n" +
+//            p"rs is ${Binary(csa.io.out(0).head(4))}.${Binary(csa.io.out(0).tail(4))}\n" +
+//            p"rc is ${Binary(csa.io.out(1).head(5).tail(1))}.${Binary(csa.io.out(1).tail(5))}0\n"
+//        )
+//      }
+//    }
+    (csa.io.out(0) + (csa.io.out(1)(6, 0) << 1))(7)
   }})
   s := DetectSign(signs.asUInt, s"sel_q")
   f := Mux1H(s, Seq(
-    (bReg << 4 | "b1100".U)(itn_len-1, 0),
-    (bReg << 3 | "b111".U)(itn_len-1, 0),
+    (bReg << 4 | "b1100".U),
+    (bReg << 3 | "b111".U),
     0.U,
-    (~aReg << 3 | "b111".U)(itn_len-1, 0),
-    (~aReg << 4 | "b1100".U)(itn_len-1, 0)
-  ))
+    (~aReg << 3 | "b111".U),
+    (~aReg << 4 | "b1100".U)
+  )) // (2, len + 1)
 
-  val csaWide = Module(new CSA3_2(itn_len+1)).suggestName("csa_iter")
-  csaWide.io.in(0) := wsReg
-  csaWide.io.in(1) := wcReg
-  csaWide.io.in(2) := f
-  wsIter := csaWide.io.out(0)
-  wcIter := csaWide.io.out(1)(itn_len, 1) << 1
+  val csaWide = Module(new CSA3_2(len+3)).suggestName("csa_iter")
+  csaWide.io.in(0) := wsReg << 2
+  csaWide.io.in(1) := wcReg << 2
+  csaWide.io.in(2) := (f << (len+1).U) >> (j << 1) // workaround for f << ((len+1).U - (j << 1))
+  wsIter := csaWide.io.out(0)(len+2, 0)
+  wcIter := csaWide.io.out(1)(len+1, 0) << 1
+
+//  when(state === 2.U) {
+//    printf(
+////      p"=== Wide CSAs ===\n" +
+//        p"signs is ${Binary(signs.asUInt)}; s[j+1] is ${s}\n" +
+//        p"lookup is ${Binary(lookup)}\n" //+
+////        p"4ws is ${Binary(csaWide.io.in(0).head(2))}.${Binary(csaWide.io.in(0).tail(2))}\n" +
+////        p"4wc is ${Binary(csaWide.io.in(1).head(2))}.${Binary(csaWide.io.in(1).tail(2))}\n" +
+////        p"  F is ${Binary(csaWide.io.in(2).head(2))}.${Binary(csaWide.io.in(2).tail(2))}\n" +
+////        p" rs is ${Binary(csaWide.io.out(0).head(2))}.${Binary(csaWide.io.out(0).tail(2))}\n" +
+////        p" rc is ${Binary(csaWide.io.out(1).head(3).tail(1))}.${Binary(csaWide.io.out(1).tail(3))}0\n\n"
+//    )
+//  }
 
   // OTFC
   aIter := OTFC(s, aReg, bReg, len+2)._1
   bIter := OTFC(s, aReg, bReg, len+2)._2
 
-  io.rem := wsReg + wcReg
+  io.rem := wsReg + wcReg // (1, len+3)
   io.res := aReg
   io.resM1 := bReg
 }
