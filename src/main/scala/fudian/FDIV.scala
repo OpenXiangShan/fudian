@@ -319,21 +319,34 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   rounder.io.rm := rmReg
 
   val resExp = Mux(subResReg, 0.U, finalExp + FloatPoint.expBias(expWidth).U)(expWidth-1, 0)
-  val resExpReg = RegEnable(Mux(rounder.io.cout && (resExp =/= FloatPoint.maxNormExp(expWidth).U), resExp + 1.U, resExp), state(s_post_0))
-  val resSigReg = RegEnable(Mux(rounder.io.cout && (resExp === FloatPoint.maxNormExp(expWidth).U), rounder.io.in ,rounder.io.out), state(s_post_0))
   val inexact = rounder.io.inexact
   val uf = !resExp.orR && inexact // TODO
   val of = resExp.andR
-  val normal_fflags = RegEnable(Cat(0.U(2.W), of, uf, inexact), state(s_post_0))
+  val normal_fflags = Cat(0.U(2.W), of, uf, inexact)
+  val combinedFFlags = Mux(skipIterReg, special_fflags, normal_fflags)
 
-  // in rmin rmax rminMag no infs
+  // in rmin rmax rminMag
   val noInf = (rmReg === RTZ || (rmReg === RDN && !resSignReg) || (rmReg === RUP && resSignReg)) && special_fflags(2)
   val noZero = ((rmReg === RDN && resSignReg) || (rmReg === RUP && !resSignReg)) && special_fflags(1)
-  val specialInf = noInf || noZero
-  val specialInfResult = Mux(noInf, Cat(resSignReg, FloatPoint.maxNormExp(expWidth).U, Fill(precision-1, true.B)), Cat(resSignReg, 0.U(expWidth.W), 1.U((precision - 1).W)))
+  val specialRmSig = Mux(noInf, Fill(precision-1, true.B), 1.U((precision - 1).W))
+  val specialRmExp = Mux(noInf, FloatPoint.maxNormExp(expWidth).U, 0.U(expWidth.W))
 
-  io.result := Mux(specialInf, specialInfResult, Mux(skipIterReg, special_result, Cat(resSignReg, resExpReg, resSigReg(precision - 2, 0))))  // TODO subnormal occasions
-  io.fflags := Mux(skipIterReg, special_fflags, normal_fflags)
+  val combinedExp = Mux(noInf || noZero, specialRmExp,
+    Mux(skipIterReg, special_exp,
+      Mux(rounder.io.cout && (resExp =/= FloatPoint.maxNormExp(expWidth).U), resExp + 1.U, resExp)))
+  val combinedSig = Mux(noInf || noZero, specialRmSig,
+    Mux(skipIterReg, special_sig,
+      Mux(rounder.io.cout && (resExp === FloatPoint.maxNormExp(expWidth).U), rounder.io.in(precision - 2, 0) ,rounder.io.out(precision - 2, 0))))
+  val combinedExpReg = RegEnable(combinedExp, state(s_post_0))
+  val combinedSigReg = RegEnable(combinedSig, state(s_post_0))
+  val combinedFFlagsReg = RegEnable(combinedFFlags, state(s_post_0))
+  val combinedSignReg = RegEnable(Mux(inv, false.B, resSignReg), state(s_post_0))
+
+//  val specialInf = noInf || noZero
+//  val specialInfResult = Mux(noInf, Cat(resSignReg, FloatPoint.maxNormExp(expWidth).U, Fill(precision-1, true.B)), Cat(resSignReg, 0.U(expWidth.W), 1.U((precision - 1).W)))
+
+  io.result := Cat(combinedSignReg, combinedExpReg, combinedSigReg)
+  io.fflags := combinedFFlagsReg
 }
 
 class DivIterModule(len: Int, itn_len: Int) extends Module {

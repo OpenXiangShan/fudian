@@ -1,6 +1,6 @@
 #include <VFDIV.h>
 #include "common.h"
-#include "verilated_vcd_c.h"
+//#include "verilated_vcd_c.h"
 
 int main(int argc, char* argv[]) {
     if(argc != 3){
@@ -20,12 +20,12 @@ int main(int argc, char* argv[]) {
         printf("unknown op: %s\n", argv[2]);
         return -1;
     }
-    const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
+//    const std::unique_ptr<VerilatedContext> contextp{new VerilatedContext};
 
     VFDIV module;
-    Verilated::traceEverOn(true);
-    VerilatedVcdC* tfp = new VerilatedVcdC;
-    module.trace(tfp, 99);  // Trace 99 levels of hierarchy
+//    Verilated::traceEverOn(true);
+//    VerilatedVcdC* tfp = new VerilatedVcdC;
+//    module.trace(tfp, 99);  // Trace 99 levels of hierarchy
 //    tfp->open("/bigdata/lqr/simx.vcd");
 
     for(int i = 0; i<10; i++){
@@ -38,14 +38,12 @@ int main(int argc, char* argv[]) {
     module.reset = 0;
     module.clock = 0;
     module.io_specialIO_in_valid = 0;
-    contextp->timeInc(1);
     module.eval();
-    tfp->dump(contextp->time());
 
     module.clock = 1;
-    contextp->timeInc(1);
+//    contextp->timeInc(1);
     module.eval();
-    tfp->dump(contextp->time());
+//    tfp->dump(contextp->time());
 
     uint64_t a, b, ref_result, ref_fflags;
     uint64_t dut_result, dut_fflags;
@@ -53,79 +51,39 @@ int main(int argc, char* argv[]) {
     uint64_t cnt = 0;
     uint64_t error = 0;
 
-    while(op == 0 && (scanf("%lx %lx %lx %lx", &a, &b, &ref_result, &ref_fflags) != EOF)){
+    while(scanf("%lx", &a) != EOF){
+        if (op == 0) scanf("%lx", &b);
+        scanf("%lx %lx", &ref_result, &ref_fflags);
         module.clock = 0;
         module.io_a = a;
-        module.io_b = b;
+        if (op == 0) module.io_b = b;
         module.io_specialIO_isSqrt = op;
         module.io_rm = rm;
         module.io_specialIO_in_valid = 1;
         module.io_specialIO_out_ready = 1;
-        contextp->timeInc(1);
         module.eval();
-        tfp->dump(contextp->time());
 
         module.clock = 1;
-        contextp->timeInc(1);
+//        contextp->timeInc(1);
         module.eval();
-        tfp->dump(contextp->time());
+//        tfp->dump(contextp->time());
         while(!module.io_specialIO_out_valid){
             module.clock = 0;
-            contextp->timeInc(1);
             module.eval();
-            tfp->dump(contextp->time());
             module.clock = 1;
-            contextp->timeInc(1);
+//            contextp->timeInc(1);
             module.eval();
-            tfp->dump(contextp->time());
+//            tfp->dump(contextp->time());
         }
         dut_result = module.io_result;
         dut_fflags = module.io_fflags;
         if( (dut_result != ref_result || dut_fflags != ref_fflags) ){
-            printf("[%ld] input: %lx %lx\n", cnt, a, b);
+            if (op == 0) printf("[%ld] input: %lx %lx\n", cnt, a, b);
+                else printf("[%ld] input: %lx\n", cnt, a);
             printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_result, dut_fflags);
             printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_result, ref_fflags);
             error++;
-            tfp->close();
-            return -1;
-        }
-        cnt++;
-    }
-
-    while(op == 1 && (scanf("%lx %lx %lx", &a, &ref_result, &ref_fflags) != EOF)){
-        module.clock = 0;
-        module.io_a = a;
-        module.io_b = 0;
-        module.io_specialIO_isSqrt = op;
-        module.io_rm = rm;
-        module.io_specialIO_in_valid = 1;
-        module.io_specialIO_out_ready = 1;
-        contextp->timeInc(1);
-        module.eval();
-        tfp->dump(contextp->time());
-
-        module.clock = 1;
-        contextp->timeInc(1);
-        module.eval();
-        tfp->dump(contextp->time());
-        while(!module.io_specialIO_out_valid){
-            module.clock = 0;
-            contextp->timeInc(1);
-            module.eval();
-            tfp->dump(contextp->time());
-            module.clock = 1;
-            contextp->timeInc(1);
-            module.eval();
-            tfp->dump(contextp->time());
-        }
-        dut_result = module.io_result;
-        dut_fflags = module.io_fflags;
-        if( (dut_result != ref_result || dut_fflags != ref_fflags) ){
-            printf("[%ld] input: %lx\n", cnt, a);
-            printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_result, dut_fflags);
-            printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_result, ref_fflags);
-            error++;
-            tfp->close();
+//            tfp->close();
             return -1;
         }
         cnt++;

@@ -55,7 +55,7 @@ $$($(1)_v): $$(SCALA_SRC)
 	mill -i fudian.runMain fudian.Generator --fu $(2) --ftype $(3) --full-stacktrace -td $$(@D)
 
 $$($(1)_emu): $$($(1)_v) $$(CSRC_DIR)/$(2)_Test.cpp
-	verilator --cc --exe --trace $$^ -Mdir $$(@D) -o $$@ --build
+	verilator --cc --exe $$^ -Mdir $$(@D) -o $$@ --build
 
 $(1)_test_rnear_even: $$($(1)_emu)
 	$$(TEST_FLOAT_GEN) $$(TEST_FLOAT_OPTS) $(1) -rnear_even | $$< -rnear_even $(4)
