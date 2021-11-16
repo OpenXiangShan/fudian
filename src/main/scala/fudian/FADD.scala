@@ -2,7 +2,6 @@ package fudian
 
 import chisel3._
 import chisel3.util._
-import chisel3.util.experimental.decode._
 import fudian.utils._
 
 class FarPath(val expWidth: Int, val precision: Int, val outPc: Int)
@@ -119,18 +118,9 @@ class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
   // need to limit the shamt? (if a.exp is not large enough, a.exp-lzc may < 1)
   val need_shift_lim = a.exp < (precision + 1).U
   val mask_table_k_width = log2Up(precision + 1)
-  val shift_lim_mask_raw = decoder(
-    QMCMinimizer,
-    a.exp(mask_table_k_width - 1, 0),
-    TruthTable(
-      (1 to precision + 1).map { i =>
-        BitPat(i.U(mask_table_k_width.W)) -> BitPat(
-          (BigInt(1) << (precision + 1 - i)).U((precision + 1).W)
-        )
-      },
-      BitPat.dontCare(precision + 1)
-    )
-  )
+  val shift_lim_mask_raw = ((
+    Cat(true.B, 0.U((precision + 1).W)) >> a.exp(mask_table_k_width - 1, 0)
+    ).asUInt())(precision , 0)
   val shift_lim_mask = Mux(need_shift_lim, shift_lim_mask_raw, 0.U)
   val shift_lim_bit = (shift_lim_mask_raw & sig_raw).orR()
 
