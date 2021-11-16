@@ -14,15 +14,7 @@ class CLZ(len: Int, zero: Boolean) extends Module {
     val out = Output(UInt(outWidth.W))
   })
 
-  val normalTerms = Seq.tabulate(inWidth) { i =>
-    BitPat("b" + ("0" * i) + "1" + ("?" * (inWidth - i - 1))) -> BitPat(
-      i.U(outWidth.W)
-    )
-  }
-  val zeroTerm = BitPat(0.U(inWidth.W)) -> BitPat((inWidth - 1).U(outWidth.W))
-  val terms = if (zero) normalTerms :+ zeroTerm else normalTerms
-  val table = TruthTable(terms, BitPat.dontCare(outWidth))
-  io.out := decoder(QMCMinimizer, io.in, table)
+  io.out := PriorityEncoder(io.in.asBools().reverse)
 }
 
 object CLZ {
