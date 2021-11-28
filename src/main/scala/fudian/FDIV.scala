@@ -174,7 +174,7 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
 
   val in_fire = in_ready && in_valid
   in_ready := state(s_idle)
-  out_valid := state(s_finish)
+  out_valid := state(s_post_0)
 
   // reused wires
 //  val aNormAbs = Wire(UInt((len + 1).W)) // Inputs of xNormAbs regs below
@@ -211,9 +211,9 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
     state := Mux(skipIter, UIntToOH(s_post_0, state_num), UIntToOH(s_iter, state_num))
   } .elsewhen(finalIter && state(s_iter)) {
     state := UIntToOH(s_post_0, state_num)
-  } .elsewhen(state(s_post_0)) {
+  } .elsewhen(state(s_post_0) && out_ready) {
     state := UIntToOH(s_finish, state_num)
-  } .elsewhen(state(s_finish) && out_ready) {
+  } .elsewhen(state(s_finish)) {
     state := UIntToOH(s_idle, state_num)
   } .otherwise {
     state := state
