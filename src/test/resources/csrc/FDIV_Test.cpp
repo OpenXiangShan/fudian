@@ -75,6 +75,10 @@ int main(int argc, char* argv[]) {
             module.eval();
 //            tfp->dump(contextp->time());
         }
+	module.clock = 0;
+	module.eval();
+	module.clock = 1;
+	module.eval();
         dut_result = module.io_result;
         dut_fflags = module.io_fflags;
         if( (dut_result != ref_result || dut_fflags != ref_fflags) ){
