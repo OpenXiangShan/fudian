@@ -26,94 +26,92 @@ import fudian.utils.{CLZ, LZA}
 import chisel3.util.experimental.decode._
 
 object mLookupTable {
-  // Usage :
-  // result := decoder(QMCMinimizer, index, mLookupTable.xxx)
   val minus_m = Seq(
-    TruthTable(Seq( // -m[-1]
-      BitPat(0.U(3.W)) -> BitPat("b00_1101".U(6.W)),
-      BitPat(1.U(3.W)) -> BitPat("b00_1111".U(6.W)),
-      BitPat(2.U(3.W)) -> BitPat("b01_0000".U(6.W)),
-      BitPat(3.U(3.W)) -> BitPat("b01_0010".U(6.W)),
-      BitPat(4.U(3.W)) -> BitPat("b01_0011".U(6.W)),
-      BitPat(5.U(3.W)) -> BitPat("b01_0101".U(6.W)),
-      BitPat(6.U(3.W)) -> BitPat("b01_0110".U(6.W)),
-      BitPat(7.U(3.W)) -> BitPat("b01_1000".U(6.W))
-    ), BitPat.dontCare(6)),
-    TruthTable(Seq( // -m[0]
-      BitPat(0.U(3.W)) -> BitPat("b00_0100".U(6.W)),
-      BitPat(1.U(3.W)) -> BitPat("b00_0110".U(6.W)),
-      BitPat(2.U(3.W)) -> BitPat("b00_0110".U(6.W)),
-      BitPat(3.U(3.W)) -> BitPat("b00_0110".U(6.W)),
-      BitPat(4.U(3.W)) -> BitPat("b00_1000".U(6.W)),
-      BitPat(5.U(3.W)) -> BitPat("b00_1000".U(6.W)),
-      BitPat(6.U(3.W)) -> BitPat("b00_1000".U(6.W)),
-      BitPat(7.U(3.W)) -> BitPat("b00_1000".U(6.W))
-    ), BitPat.dontCare(6)),
-    TruthTable(Seq( //-m[1]
-      BitPat(0.U(3.W)) -> BitPat("b11_1101".U(6.W)),
-      BitPat(1.U(3.W)) -> BitPat("b11_1100".U(6.W)),
-      BitPat(2.U(3.W)) -> BitPat("b11_1100".U(6.W)),
-      BitPat(3.U(3.W)) -> BitPat("b11_1100".U(6.W)),
-      BitPat(4.U(3.W)) -> BitPat("b11_1011".U(6.W)),
-      BitPat(5.U(3.W)) -> BitPat("b11_1010".U(6.W)),
-      BitPat(6.U(3.W)) -> BitPat("b11_1010".U(6.W)),
-      BitPat(7.U(3.W)) -> BitPat("b11_1010".U(6.W))
-    ), BitPat.dontCare(6)),
-    TruthTable(Seq( //-m[2]
-      BitPat(0.U(3.W)) -> BitPat("b11_0100".U(6.W)),
-      BitPat(1.U(3.W)) -> BitPat("b11_0010".U(6.W)),
-      BitPat(2.U(3.W)) -> BitPat("b11_0001".U(6.W)),
-      BitPat(3.U(3.W)) -> BitPat("b10_1111".U(6.W)),
-      BitPat(4.U(3.W)) -> BitPat("b10_1110".U(6.W)),
-      BitPat(5.U(3.W)) -> BitPat("b10_1100".U(6.W)),
-      BitPat(6.U(3.W)) -> BitPat("b10_1011".U(6.W)),
-      BitPat(7.U(3.W)) -> BitPat("b10_1001".U(6.W))
-    ), BitPat.dontCare(6))
+    Seq( // -m[-1]
+      (0.U(3.W)) -> ("b00_1101".U(6.W)),
+      (1.U(3.W)) -> ("b00_1111".U(6.W)),
+      (2.U(3.W)) -> ("b01_0000".U(6.W)),
+      (3.U(3.W)) -> ("b01_0010".U(6.W)),
+      (4.U(3.W)) -> ("b01_0011".U(6.W)),
+      (5.U(3.W)) -> ("b01_0101".U(6.W)),
+      (6.U(3.W)) -> ("b01_0110".U(6.W)),
+      (7.U(3.W)) -> ("b01_1000".U(6.W))
+    ), 
+    Seq( // -m[0]
+      (0.U(3.W)) -> ("b00_0100".U(6.W)),
+      (1.U(3.W)) -> ("b00_0110".U(6.W)),
+      (2.U(3.W)) -> ("b00_0110".U(6.W)),
+      (3.U(3.W)) -> ("b00_0110".U(6.W)),
+      (4.U(3.W)) -> ("b00_1000".U(6.W)),
+      (5.U(3.W)) -> ("b00_1000".U(6.W)),
+      (6.U(3.W)) -> ("b00_1000".U(6.W)),
+      (7.U(3.W)) -> ("b00_1000".U(6.W))
+    ), 
+    Seq( //-m[1]
+      (0.U(3.W)) -> ("b11_1101".U(6.W)),
+      (1.U(3.W)) -> ("b11_1100".U(6.W)),
+      (2.U(3.W)) -> ("b11_1100".U(6.W)),
+      (3.U(3.W)) -> ("b11_1100".U(6.W)),
+      (4.U(3.W)) -> ("b11_1011".U(6.W)),
+      (5.U(3.W)) -> ("b11_1010".U(6.W)),
+      (6.U(3.W)) -> ("b11_1010".U(6.W)),
+      (7.U(3.W)) -> ("b11_1010".U(6.W))
+    ), 
+    Seq( //-m[2]
+      (0.U(3.W)) -> ("b11_0100".U(6.W)),
+      (1.U(3.W)) -> ("b11_0010".U(6.W)),
+      (2.U(3.W)) -> ("b11_0001".U(6.W)),
+      (3.U(3.W)) -> ("b10_1111".U(6.W)),
+      (4.U(3.W)) -> ("b10_1110".U(6.W)),
+      (5.U(3.W)) -> ("b10_1100".U(6.W)),
+      (6.U(3.W)) -> ("b10_1011".U(6.W)),
+      (7.U(3.W)) -> ("b10_1001".U(6.W))
+    ), 
   )
 }
 
 object mLookupTable2 {
   val minus_m = Seq(
-    TruthTable(Seq( // -m[-1]
-      BitPat(0.U(3.W)) -> BitPat("b00_1101".U(6.W)),
-      BitPat(1.U(3.W)) -> BitPat("b00_1110".U(6.W)),
-      BitPat(2.U(3.W)) -> BitPat("b01_0000".U(6.W)),
-      BitPat(3.U(3.W)) -> BitPat("b01_0001".U(6.W)),
-      BitPat(4.U(3.W)) -> BitPat("b01_0010".U(6.W)),
-      BitPat(5.U(3.W)) -> BitPat("b01_0100".U(6.W)),
-      BitPat(6.U(3.W)) -> BitPat("b01_0110".U(6.W)),
-      BitPat(7.U(3.W)) -> BitPat("b01_0111".U(6.W))
-    ), BitPat.dontCare(6)),
-    TruthTable(Seq( // -m[0]
-      BitPat(0.U(3.W)) -> BitPat("b00_0100".U(6.W)),
-      BitPat(1.U(3.W)) -> BitPat("b00_0101".U(6.W)),
-      BitPat(2.U(3.W)) -> BitPat("b00_0110".U(6.W)),
-      BitPat(3.U(3.W)) -> BitPat("b00_0110".U(6.W)),
-      BitPat(4.U(3.W)) -> BitPat("b00_0110".U(6.W)),
-      BitPat(5.U(3.W)) -> BitPat("b00_1000".U(6.W)),
-      BitPat(6.U(3.W)) -> BitPat("b00_1000".U(6.W)),
-      BitPat(7.U(3.W)) -> BitPat("b00_1000".U(6.W))
-    ), BitPat.dontCare(6)),
-    TruthTable(Seq( //-m[1]
-      BitPat(0.U(3.W)) -> BitPat("b11_1100".U(6.W)),
-      BitPat(1.U(3.W)) -> BitPat("b11_1100".U(6.W)),
-      BitPat(2.U(3.W)) -> BitPat("b11_1100".U(6.W)),
-      BitPat(3.U(3.W)) -> BitPat("b11_1100".U(6.W)),
-      BitPat(4.U(3.W)) -> BitPat("b11_1010".U(6.W)),
-      BitPat(5.U(3.W)) -> BitPat("b11_1010".U(6.W)),
-      BitPat(6.U(3.W)) -> BitPat("b11_1000".U(6.W)),
-      BitPat(7.U(3.W)) -> BitPat("b11_1000".U(6.W))
-    ), BitPat.dontCare(6)),
-    TruthTable(Seq( //-m[2]
-      BitPat(0.U(3.W)) -> BitPat("b11_0100".U(6.W)),
-      BitPat(1.U(3.W)) -> BitPat("b11_0010".U(6.W)),
-      BitPat(2.U(3.W)) -> BitPat("b11_0000".U(6.W)),
-      BitPat(3.U(3.W)) -> BitPat("b11_0000".U(6.W)),
-      BitPat(4.U(3.W)) -> BitPat("b10_1110".U(6.W)),
-      BitPat(5.U(3.W)) -> BitPat("b10_1100".U(6.W)),
-      BitPat(6.U(3.W)) -> BitPat("b10_1100".U(6.W)),
-      BitPat(7.U(3.W)) -> BitPat("b10_1010".U(6.W))
-    ), BitPat.dontCare(6))
+    Seq( // -m[-1]
+      (0.U(3.W)) -> ("b00_1101".U(6.W)),
+      (1.U(3.W)) -> ("b00_1110".U(6.W)),
+      (2.U(3.W)) -> ("b01_0000".U(6.W)),
+      (3.U(3.W)) -> ("b01_0001".U(6.W)),
+      (4.U(3.W)) -> ("b01_0010".U(6.W)),
+      (5.U(3.W)) -> ("b01_0100".U(6.W)),
+      (6.U(3.W)) -> ("b01_0110".U(6.W)),
+      (7.U(3.W)) -> ("b01_0111".U(6.W))
+    ), 
+    Seq( // -m[0]
+      (0.U(3.W)) -> ("b00_0100".U(6.W)),
+      (1.U(3.W)) -> ("b00_0101".U(6.W)),
+      (2.U(3.W)) -> ("b00_0110".U(6.W)),
+      (3.U(3.W)) -> ("b00_0110".U(6.W)),
+      (4.U(3.W)) -> ("b00_0110".U(6.W)),
+      (5.U(3.W)) -> ("b00_1000".U(6.W)),
+      (6.U(3.W)) -> ("b00_1000".U(6.W)),
+      (7.U(3.W)) -> ("b00_1000".U(6.W))
+    ), 
+    Seq( //-m[1]
+      (0.U(3.W)) -> ("b11_1100".U(6.W)),
+      (1.U(3.W)) -> ("b11_1100".U(6.W)),
+      (2.U(3.W)) -> ("b11_1100".U(6.W)),
+      (3.U(3.W)) -> ("b11_1100".U(6.W)),
+      (4.U(3.W)) -> ("b11_1010".U(6.W)),
+      (5.U(3.W)) -> ("b11_1010".U(6.W)),
+      (6.U(3.W)) -> ("b11_1000".U(6.W)),
+      (7.U(3.W)) -> ("b11_1000".U(6.W))
+    ), 
+    Seq( //-m[2]
+      (0.U(3.W)) -> ("b11_0100".U(6.W)),
+      (1.U(3.W)) -> ("b11_0010".U(6.W)),
+      (2.U(3.W)) -> ("b11_0000".U(6.W)),
+      (3.U(3.W)) -> ("b11_0000".U(6.W)),
+      (4.U(3.W)) -> ("b10_1110".U(6.W)),
+      (5.U(3.W)) -> ("b10_1100".U(6.W)),
+      (6.U(3.W)) -> ("b10_1100".U(6.W)),
+      (7.U(3.W)) -> ("b10_1010".U(6.W))
+    ), 
   )
 }
 
@@ -369,8 +367,8 @@ class DivIterModule(len: Int, itn_len: Int) extends Module {
   val (a, d) = (io.a, io.d)
   val lookup = d(len-2, len-4)
 
-  val smallerThanM1 = (wsInit.head(7)(4, 0) + decoder(QMCMinimizer, lookup, mLookupTable.minus_m(2))).head(1).asBool
-  val smallerThanM2 = (wsInit.head(7)(4, 0) + decoder(QMCMinimizer, lookup, mLookupTable.minus_m(3))).head(1).asBool
+  val smallerThanM1 = (wsInit.head(7)(4, 0) + MuxLookup(lookup(2,0), 0.U, mLookupTable.minus_m(2))).head(1).asBool
+  val smallerThanM2 = (wsInit.head(7)(4, 0) + MuxLookup(lookup(2,0), 0.U, mLookupTable.minus_m(3))).head(1).asBool
 
   val qInit = Mux(smallerThanM1, UIntToOH(quot_0), Mux(smallerThanM2, UIntToOH(quot_pos_1), UIntToOH(quot_pos_2)))
 
@@ -415,7 +413,7 @@ class DivIterModule(len: Int, itn_len: Int) extends Module {
 
   // Give values to the regs and wires above...
   mNeg := VecInit(Seq.tabulate(4){i =>
-    Cat(SignExt(decoder(QMCMinimizer, lookup, mLookupTable.minus_m(i)), 10), 0.U(2.W))
+    Cat(SignExt(MuxLookup(lookup(2,0), 0.U, mLookupTable.minus_m(i)), 10), 0.U(2.W))
   }) // (2, 4) -> (6, 6)
 
   udNeg := VecInit(
@@ -545,7 +543,7 @@ class SqrtIterModule(len: Int, itn_len: Int) extends Module { // itn_len == len 
   )) // TODO check A0
 
   val mNeg = VecInit(Seq.tabulate(4){i =>
-    Cat(SignExt(decoder(QMCMinimizer, lookup, mLookupTable2.minus_m(i)), 7), 0.U(1.W))
+    Cat(SignExt(MuxLookup(lookup(2,0), 0.U, mLookupTable2.minus_m(i)), 7), 0.U(1.W))
   }) // (2, 4) * 2 -> (4, 4)
 
   // Debug Utils
