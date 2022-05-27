@@ -85,10 +85,10 @@ class IntToFP_postnorm(val expWidth: Int, val precision: Int) extends Module {
   rounder.io.rm := rm
 
   val ix = rounder.io.inexact
-  val exp = Mux(is_zero, 0.U, exp_raw + rounder.io.cout)
-  val sig = rounder.io.out
+  val fp_exp = Mux(is_zero, 0.U, exp_raw + rounder.io.cout)
+  val fp_sig = rounder.io.out
 
-  io.result := Cat(in_sign, exp, sig)
+  io.result := Cat(in_sign, fp_exp, fp_sig)
   io.fflags := Cat(0.U(4.W), ix)
 }
 
