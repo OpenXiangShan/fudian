@@ -534,15 +534,17 @@ class SqrtIterModule(len: Int, itn_len: Int) extends Module { // itn_len == len 
   val wcReg = RegEnable(Mux(state(s_pre_1), wcInit, wcIter), state(s_pre_1) || state(s_iter))
 
   val jReg = RegEnable(Mux(state(s_pre_1), 1.U, j+1.U), state(s_pre_1) || state(s_iter))
+  val jm1l1Reg = RegEnable((j) << 1, state(s_iter))
+  val jm3l1Reg = RegEnable((j - 2.U) << 1, state(s_iter))
   j := jReg
 
 //  val lookupConstReg = RegEnable(aReg >> ((j - 3.U) << 1), aReg((jReg - 1.U) << 1) || (jReg === 4.U)) // TODO dont hardwire this
-  val lookup = MuxLookup(jReg, Mux(aReg((jReg - 1.U) << 1), "b111".U(3.W), aReg >> ((jReg - 3.U) << 1)), Array(
+  val lookup = MuxLookup(jReg, Mux(aReg(jm1l1Reg), "b111".U(3.W), aReg >> (jm3l1Reg)), Array(
       1.U -> "b101".U,
       2.U -> Mux(!aReg(2), Cat(aReg(0), 0.U(2.W)), "b111".U(3.W)),
       3.U -> Mux(!aReg(4), aReg(2, 0), "b111".U(3.W)),
-      4.U -> Mux(!aReg((jReg - 1.U) << 1), aReg(4, 2), "b111".U(3.W))
-  )) // TODO check A0
+      4.U -> Mux(!aReg(jm1l1Reg), aReg(4, 2), "b111".U(3.W))
+  ))(2, 0)
 
   val mNeg = VecInit(Seq.tabulate(4){i =>
     Cat(SignExt(decoder(QMCMinimizer, lookup, mLookupTable2.minus_m(i)), 7), 0.U(1.W))
