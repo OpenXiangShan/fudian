@@ -73,6 +73,8 @@ class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
       val result = new RawFloat(expWidth, outPc + 3)
       val sig_is_zero = Bool()
       val a_lt_b = Bool()
+      val lza_error = Bool()
+      val sig_s1 = UInt((precision + 1).W)
     })
   })
   val (a, b) = (io.in.a, io.in.b)
@@ -135,16 +137,19 @@ class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
   } else {
     sig_s2
   }
+
   val near_path_exp = Mux(int_bit, exp_s2, 0.U)
   val near_path_sign = Mux(a_lt_b, b.sign, a.sign)
 
   val result = Wire(new RawFloat(expWidth, outPc + 3))
   result.sign := near_path_sign
   result.exp := near_path_exp
-  result.sig := near_path_sig.head(outPc + 2) ## near_path_sig.tail(outPc + 2).orR
+  result.sig := DontCare //near_path_sig.head(outPc + 2) ## near_path_sig.tail(outPc + 2).orR
   io.out.result := result
   io.out.sig_is_zero := lza_str_zero && !sig_raw(0)
   io.out.a_lt_b := a_lt_b
+  io.out.lza_error := lza_error
+  io.out.sig_s1 := sig_s1
 }
 
 
@@ -156,7 +161,7 @@ class FCMA_ADD_s1(val expWidth: Int, val precision: Int, val outPc: Int)
     val b_inter_valid = Input(Bool())
     val b_inter_flags = Input(new FMULToFADD_fflags)
     val rm = Input(UInt(3.W))
-    val out = new FCMA_ADD_s1_to_s2(expWidth, outPc)
+    val out = new FCMA_ADD_s1_to_s2(expWidth, precision, outPc)
   })
 
   val fp_a = FloatPoint.fromUInt(io.a, expWidth, precision)
@@ -252,7 +257,10 @@ class FCMA_ADD_s1(val expWidth: Int, val precision: Int, val outPc: Int)
   io.out.far_path_mul_of := b_flags.overflow || (decode_b.expIsOnes && !eff_sub)
 
   io.out.near_path_out := near_path_out.result
+
   io.out.near_path_sig_is_zero := near_path_out.sig_is_zero
+  io.out.near_path_sig_s1 := near_path_out.sig_s1
+  io.out.near_path_lza_error := near_path_out.lza_error
 
   io.out.special_case.valid := special_case_happen
   io.out.special_case.bits.iv := special_path_iv
@@ -267,7 +275,7 @@ class FCMA_ADD_spcial_info extends Bundle {
   val inf_sign = Bool()
 }
 
-class FCMA_ADD_s1_to_s2(val expWidth: Int, val outPc: Int)
+class FCMA_ADD_s1_to_s2(val expWidth: Int, val precision: Int, val outPc: Int)
   extends Bundle {
   val rm = Output(UInt(3.W))
   val far_path_out = Output(new RawFloat(expWidth, outPc + 3))
@@ -276,15 +284,17 @@ class FCMA_ADD_s1_to_s2(val expWidth: Int, val outPc: Int)
   val small_add = Output(Bool())
   val far_path_mul_of = Output(Bool())
   val near_path_sig_is_zero = Output(Bool())
+  val near_path_lza_error = Output(Bool())
+  val near_path_sig_s1 = Output(UInt((precision + 1).W))
   val sel_far_path = Output(Bool())
 }
 
-class FCMA_ADD_s2(val expWidth: Int, val precision: Int)
+class FCMA_ADD_s2(val expWidth: Int, val precision: Int, val outPc: Int)
   extends Module {
 
   val io = IO(new Bundle() {
-    val in = Flipped(new FCMA_ADD_s1_to_s2(expWidth, precision))
-    val result = Output(UInt((expWidth + precision).W))
+    val in = Flipped(new FCMA_ADD_s1_to_s2(expWidth, precision, outPc))
+    val result = Output(UInt((expWidth + outPc).W))
     val fflags = Output(UInt(5.W))
   })
 
@@ -294,11 +304,11 @@ class FCMA_ADD_s2(val expWidth: Int, val precision: Int)
   val special_case_happen = special_case.valid
   val special_path_result = Mux(
     special_case.bits.nan,
-    FloatPoint.defaultNaNUInt(expWidth, precision),
+    FloatPoint.defaultNaNUInt(expWidth, outPc),
     Cat(
       special_case.bits.inf_sign,
       ~0.U(expWidth.W),
-      0.U((precision - 1).W)
+      0.U((outPc - 1).W)
     )
   )
   val special_path_iv = special_case.bits.iv
@@ -310,7 +320,7 @@ class FCMA_ADD_s2(val expWidth: Int, val precision: Int)
   val far_path_exp = far_path_res.exp
   val far_path_sig = far_path_res.sig
 
-  val far_path_tininess_rounder = Module(new TininessRounder(expWidth, precision))
+  val far_path_tininess_rounder = Module(new TininessRounder(expWidth, outPc))
   far_path_tininess_rounder.io.in := far_path_res
   far_path_tininess_rounder.io.rm := io.in.rm
   val far_path_tininess = small_add && far_path_tininess_rounder.io.tininess
@@ -319,7 +329,7 @@ class FCMA_ADD_s2(val expWidth: Int, val precision: Int)
     in = far_path_sig.tail(1),
     rm = io.in.rm,
     sign = far_path_res.sign,
-    width = precision - 1
+    width = outPc - 1
   )
 
   val far_path_exp_rounded = far_path_rounder.io.cout + far_path_exp
@@ -342,14 +352,27 @@ class FCMA_ADD_s2(val expWidth: Int, val precision: Int)
   val far_path_result =
     Cat(far_path_res.sign, far_path_exp_rounded, far_path_sig_rounded)
 
-  val near_path_res = io.in.near_path_out
+  // val near_path_res = io.in.near_path_out
+  val near_path_res = WireInit(io.in.near_path_out)
   val near_path_sign = near_path_res.sign
   val near_path_exp = near_path_res.exp
-  val near_path_sig = near_path_res.sig
+  // val near_path_sig = near_path_res.sig
   val near_path_sig_zero = io.in.near_path_sig_is_zero
   val near_path_is_zero = near_path_exp === 0.U && near_path_sig_zero
 
-  val near_path_tininess_rounder = Module(new TininessRounder(expWidth, precision))
+  val sig_s2 = Mux(io.in.near_path_lza_error, Cat(io.in.near_path_sig_s1.tail(1), 0.U(1.W)), io.in.near_path_sig_s1)
+  val near_path_sig_cor = if(outPc + 3 > precision + 1){
+    Cat(
+      sig_s2,
+      0.U((outPc + 3 - precision - 1).W)
+    )
+  } else {
+    sig_s2
+  }
+  val near_path_sig = near_path_sig_cor.head(outPc + 2) ## near_path_sig_cor.tail(outPc + 2).orR
+  near_path_res.sig := near_path_sig
+
+  val near_path_tininess_rounder = Module(new TininessRounder(expWidth, outPc))
   near_path_tininess_rounder.io.in := near_path_res
   near_path_tininess_rounder.io.rm := io.in.rm
   val near_path_tininess = near_path_tininess_rounder.io.tininess
@@ -358,7 +381,7 @@ class FCMA_ADD_s2(val expWidth: Int, val precision: Int)
     in = near_path_sig.tail(1),
     rm = io.in.rm,
     sign = near_path_res.sign,
-    width = precision - 1
+    width = outPc - 1
   )
 
   val near_path_exp_rounded = near_path_rounder.io.cout + near_path_exp
@@ -386,7 +409,7 @@ class FCMA_ADD_s2(val expWidth: Int, val precision: Int)
     ((BigInt(1) << expWidth) - 1).U(expWidth.W)
   )
   val common_overflow_sig =
-    Mux(rmin, Fill(precision - 1, 1.U(1.W)), 0.U((precision - 1).W))
+    Mux(rmin, Fill(outPc - 1, 1.U(1.W)), 0.U((outPc - 1).W))
   val common_underflow =
     sel_far_path && far_path_uf || !sel_far_path && near_path_uf
   val common_inexact =
@@ -639,7 +662,7 @@ class FCMA_ADD(val expWidth: Int, val precision: Int, val outPc: Int) extends Mo
   })
 
   val fadd_s1 = Module(new FCMA_ADD_s1(expWidth, precision, outPc))
-  val fadd_s2 = Module(new FCMA_ADD_s2(expWidth, outPc))
+  val fadd_s2 = Module(new FCMA_ADD_s2(expWidth, precision, outPc))
 
   fadd_s1.io.a := io.a
   fadd_s1.io.b := io.b
