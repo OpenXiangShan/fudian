@@ -22,8 +22,8 @@ package fudian
 
 import chisel3._
 import chisel3.util._
-import fudian.utils.{CLZ, LZA}
 import chisel3.util.experimental.decode._
+import fudian.utils.CLZ
 
 object mLookupTable {
   val minus_m = Seq(
@@ -168,7 +168,7 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   // pre_1: calculate exponent, and obatins 1st q/s for iter. find all special cases
   // iter: ...
   // post: increment/ decrement exponent
-  val state = RegInit(UIntToOH(s_idle, state_num))
+  val state = RegInit((1 << s_idle.litValue.toInt).U(state_num.W))
 
   val in_fire = in_ready && in_valid
   in_ready := state(s_idle)
