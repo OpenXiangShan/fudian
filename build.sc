@@ -5,8 +5,8 @@ import scalafmt._
 import coursier.maven.MavenRepository
 
 val defaultVersions = Map(
-  "chisel3" -> "3.5-SNAPSHOT",
-  "chisel3-plugin" -> "3.5-SNAPSHOT",
+  "chisel3" -> "3.5.0",
+  "chisel3-plugin" -> "3.5.0",
   "scala" -> "2.12.13",
   "chiseltest" -> "latest.integration",
   "scalatest" -> "3.2.7"
