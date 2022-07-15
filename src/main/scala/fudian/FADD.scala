@@ -16,6 +16,11 @@ class FarPath(val expWidth: Int, val precision: Int, val outPc: Int)
     })
     val out = Output(new Bundle() {
       val result = new RawFloat(expWidth, outPc + 3)
+      val sig_a = UInt(precision.W)
+      val sig_b = UInt((precision+2).W)
+      val sig_b_sticky = Bool()
+      val exp_a_vec = Vec(3, UInt(expWidth.W))
+      val effSub = Bool()
     })
   })
 
@@ -26,15 +31,18 @@ class FarPath(val expWidth: Int, val precision: Int, val outPc: Int)
   // shamt <- [2, precision + 2]
   val (sig_b_main, sig_b_sticky) = ShiftRightJam(Cat(b.sig, 0.U(2.W)), expDiff)
 
+  /*
   val adder_in_sig_b = Cat(0.U(1.W), sig_b_main, sig_b_sticky)
   val adder_in_sig_a = Cat(0.U(1.W), a.sig, 0.U(3.W))
   val adder_result =
     adder_in_sig_a +
       Mux(effSub, ~adder_in_sig_b, adder_in_sig_b).asUInt() + effSub
+   */
 
   val exp_a_plus_1 = a.exp + 1.U
   val exp_a_minus_1 = a.exp - 1.U
 
+  /*
   val cout = adder_result.head(1).asBool
   val keep = adder_result.head(2) === 1.U
   val cancellation = adder_result.head(2) === 0.U
@@ -52,12 +60,20 @@ class FarPath(val expWidth: Int, val precision: Int, val outPc: Int)
     Seq(cout, keep, cancellation),
     Seq(exp_a_plus_1, a.exp, exp_a_minus_1)
   )
+   */
 
   val result = Wire(new RawFloat(expWidth, outPc + 3))
   result.sign := a.sign
-  result.exp := far_path_exp
-  result.sig := far_path_sig
+  result.exp := DontCare //far_path_exp
+  result.sig := DontCare //far_path_sig
   io.out.result := result
+  io.out.sig_a := a.sig
+  io.out.sig_b := sig_b_main
+  io.out.sig_b_sticky := sig_b_sticky
+  io.out.exp_a_vec(0) := exp_a_plus_1
+  io.out.exp_a_vec(1) := a.exp
+  io.out.exp_a_vec(2) := exp_a_minus_1
+  io.out.effSub := effSub
 }
 
 class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
@@ -255,9 +271,13 @@ class FCMA_ADD_s1(val expWidth: Int, val precision: Int, val outPc: Int)
 
   io.out.far_path_out := far_path_out.result
   io.out.far_path_mul_of := b_flags.overflow || (decode_b.expIsOnes && !eff_sub)
+  io.out.far_sig_a := far_path_out.sig_a
+  io.out.far_sig_b := far_path_out.sig_b
+  io.out.far_sig_b_sticky := far_path_out.sig_b_sticky
+  io.out.far_exp_a_vec := far_path_out.exp_a_vec
+  io.out.far_effSub := far_path_out.effSub
 
   io.out.near_path_out := near_path_out.result
-
   io.out.near_path_sig_is_zero := near_path_out.sig_is_zero
   io.out.near_path_sig_s1 := near_path_out.sig_s1
   io.out.near_path_lza_error := near_path_out.lza_error
@@ -281,8 +301,17 @@ class FCMA_ADD_s1_to_s2(val expWidth: Int, val precision: Int, val outPc: Int)
   val far_path_out = Output(new RawFloat(expWidth, outPc + 3))
   val near_path_out = Output(new RawFloat(expWidth, outPc + 3))
   val special_case = ValidIO(new FCMA_ADD_spcial_info)
+
+  // far path addtitional
   val small_add = Output(Bool())
   val far_path_mul_of = Output(Bool())
+  val far_sig_a = Output(UInt(precision.W))
+  val far_sig_b = Output(UInt((precision+2).W))
+  val far_sig_b_sticky = Output(Bool())
+  val far_exp_a_vec = Output(Vec(3, UInt(expWidth.W)))
+  val far_effSub = Output(Bool())
+
+  // near path additional
   val near_path_sig_is_zero = Output(Bool())
   val near_path_lza_error = Output(Bool())
   val near_path_sig_s1 = Output(UInt((precision + 1).W))
@@ -315,7 +344,31 @@ class FCMA_ADD_s2(val expWidth: Int, val precision: Int, val outPc: Int)
   val special_path_fflags = Cat(special_path_iv, 0.U(4.W))
 
   // Far Path
-  val far_path_res = io.in.far_path_out
+  val far_path_res = WireInit(io.in.far_path_out)
+
+  val adder_in_sig_b = Cat(0.U(1.W), io.in.far_sig_b, io.in.far_sig_b_sticky)
+  val adder_in_sig_a = Cat(0.U(1.W), io.in.far_sig_a, 0.U(3.W))
+  val adder_result =
+    adder_in_sig_a +
+      Mux(io.in.far_effSub, ~adder_in_sig_b, adder_in_sig_b).asUInt() + io.in.far_effSub
+
+  val cout = adder_result.head(1).asBool
+  val keep = adder_result.head(2) === 1.U
+  val cancellation = adder_result.head(2) === 0.U
+
+  far_path_res.sig := Mux1H(
+    Seq(cout, keep || small_add, cancellation && !small_add),
+    Seq(
+      adder_result.head(outPc + 2) ## adder_result.tail(outPc + 2).orR,
+      adder_result.tail(1).head(outPc + 2) ## adder_result.tail(outPc + 3).orR,
+      adder_result.tail(2).head(outPc + 2) ## adder_result.tail(outPc + 4).orR
+    )
+  )
+
+  far_path_res.exp := Mux1H(
+    Seq(cout, keep, cancellation),
+    io.in.far_exp_a_vec
+  )
 
   val far_path_exp = far_path_res.exp
   val far_path_sig = far_path_res.sig
