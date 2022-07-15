@@ -90,7 +90,8 @@ class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
       val sig_is_zero = Bool()
       val a_lt_b = Bool()
       val lza_error = Bool()
-      val sig_s1 = UInt((precision + 1).W)
+      val sig_raw = UInt((precision + 1).W)
+      val lzc = UInt(log2Up(precision + 1).W)
     })
   })
   val (a, b) = (io.in.a, io.in.b)
@@ -143,6 +144,8 @@ class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
   val lza_error = !int_bit_predicted && !exceed_lim
   val exp_s1 = a.exp - lzc
   val exp_s2 = exp_s1 - lza_error
+
+  /*
   val sig_s1 = (sig_raw << lzc)(precision, 0)
   val sig_s2 = Mux(lza_error, Cat(sig_s1.tail(1), 0.U(1.W)), sig_s1)
   val near_path_sig = if(outPc + 3 > precision + 1){
@@ -153,6 +156,7 @@ class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
   } else {
     sig_s2
   }
+   */
 
   val near_path_exp = Mux(int_bit, exp_s2, 0.U)
   val near_path_sign = Mux(a_lt_b, b.sign, a.sign)
@@ -165,7 +169,8 @@ class NearPath(val expWidth: Int, val precision: Int, val outPc: Int)
   io.out.sig_is_zero := lza_str_zero && !sig_raw(0)
   io.out.a_lt_b := a_lt_b
   io.out.lza_error := lza_error
-  io.out.sig_s1 := sig_s1
+  io.out.sig_raw := sig_raw
+  io.out.lzc := lzc
 }
 
 
@@ -279,8 +284,9 @@ class FCMA_ADD_s1(val expWidth: Int, val precision: Int, val outPc: Int)
 
   io.out.near_path_out := near_path_out.result
   io.out.near_path_sig_is_zero := near_path_out.sig_is_zero
-  io.out.near_path_sig_s1 := near_path_out.sig_s1
+  io.out.near_path_sig_raw := near_path_out.sig_raw
   io.out.near_path_lza_error := near_path_out.lza_error
+  io.out.near_path_lzc := near_path_out.lzc
 
   io.out.special_case.valid := special_case_happen
   io.out.special_case.bits.iv := special_path_iv
@@ -314,7 +320,8 @@ class FCMA_ADD_s1_to_s2(val expWidth: Int, val precision: Int, val outPc: Int)
   // near path additional
   val near_path_sig_is_zero = Output(Bool())
   val near_path_lza_error = Output(Bool())
-  val near_path_sig_s1 = Output(UInt((precision + 1).W))
+  val near_path_sig_raw = Output(UInt((precision + 1).W))
+  val near_path_lzc = Output(UInt(log2Up(precision + 1).W))
   val sel_far_path = Output(Bool())
 }
 
@@ -413,7 +420,9 @@ class FCMA_ADD_s2(val expWidth: Int, val precision: Int, val outPc: Int)
   val near_path_sig_zero = io.in.near_path_sig_is_zero
   val near_path_is_zero = near_path_exp === 0.U && near_path_sig_zero
 
-  val sig_s2 = Mux(io.in.near_path_lza_error, Cat(io.in.near_path_sig_s1.tail(1), 0.U(1.W)), io.in.near_path_sig_s1)
+  val lzc = io.in.near_path_lzc
+  val sig_s1 = (io.in.near_path_sig_raw << lzc)(precision, 0)
+  val sig_s2 = Mux(io.in.near_path_lza_error, Cat(sig_s1.tail(1), 0.U(1.W)), sig_s1)
   val near_path_sig_cor = if(outPc + 3 > precision + 1){
     Cat(
       sig_s2,
