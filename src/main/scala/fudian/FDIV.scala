@@ -528,21 +528,15 @@ class SqrtIterModule(len: Int, itn_len: Int) extends Module { // itn_len == len 
 
   val aReg = RegEnable(Mux(state(s_pre_1), aInit, aIter), state(s_pre_1) || state(s_iter))
   val bReg = RegEnable(Mux(state(s_pre_1), bInit, bIter), state(s_pre_1) || state(s_iter)) // (1, len+1)
+  val aHeadReg = Reg(UInt(3.W))
+
   val wsReg = RegEnable(Mux(state(s_pre_1), wsInit, wsIter), state(s_pre_1) || state(s_iter)) // (2, len+1)
   val wcReg = RegEnable(Mux(state(s_pre_1), wcInit, wcIter), state(s_pre_1) || state(s_iter))
 
   val jReg = RegEnable(Mux(state(s_pre_1), 1.U, j+1.U), state(s_pre_1) || state(s_iter))
-  val jm1l1Reg = RegEnable((j) << 1, state(s_iter))
-  val jm3l1Reg = RegEnable((j - 2.U) << 1, state(s_iter))
   j := jReg
 
-//  val lookupConstReg = RegEnable(aReg >> ((j - 3.U) << 1), aReg((jReg - 1.U) << 1) || (jReg === 4.U)) // TODO dont hardwire this
-  val lookup = MuxLookup(jReg, Mux(aReg(jm1l1Reg), "b111".U(3.W), aReg >> (jm3l1Reg)), Array(
-      1.U -> "b101".U,
-      2.U -> Mux(!aReg(2), Cat(aReg(0), 0.U(2.W)), "b111".U(3.W)),
-      3.U -> Mux(!aReg(4), aReg(2, 0), "b111".U(3.W)),
-      4.U -> Mux(!aReg(jm1l1Reg), aReg(4, 2), "b111".U(3.W))
-  ))(2, 0)
+  val lookup = Mux(j === 1.U, "b101".U, aHeadReg)(2, 0)
 
   val mNeg = VecInit(Seq.tabulate(4){i =>
     Cat(SignExt(MuxLookup(lookup(2,0), 0.U, mLookupTable2.minus_m(i)), 7), 0.U(1.W))
@@ -618,6 +612,12 @@ class SqrtIterModule(len: Int, itn_len: Int) extends Module { // itn_len == len 
   // OTFC
   aIter := OTFC(s, aReg, bReg, len+2)._1
   bIter := OTFC(s, aReg, bReg, len+2)._2
+
+  aHeadReg := Mux(aIter(j << 1),
+    "b111".U(3.W),
+    Mux(j === 1.U,
+      Cat(aIter(0), 0.U(2.W)),
+      aIter >> ((j - 2.U) << 1)))
 
   io.rem := wsReg + wcReg // (1, len+3)
   io.res := aReg
