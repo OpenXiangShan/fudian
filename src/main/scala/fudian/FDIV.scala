@@ -141,6 +141,7 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
     val specialIO = new FDIVSpecialIO
   })
 
+
   val isSqrt = io.specialIO.isSqrt
   val in_valid = io.specialIO.in_valid
   val out_ready = io.specialIO.out_ready
@@ -169,10 +170,11 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   // iter: ...
   // post: increment/ decrement exponent
   val state = RegInit((1 << s_idle.litValue.toInt).U(state_num.W))
+  val outValidReg = RegInit(false.B)
 
   val in_fire = in_ready && in_valid
   in_ready := state(s_idle)
-  out_valid := state(s_post_0)
+  out_valid := outValidReg
 
   // reused wires
 //  val aNormAbs = Wire(UInt((len + 1).W)) // Inputs of xNormAbs regs below
@@ -201,21 +203,27 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   // TODO: sqrt always gets Normal results!
   when(io.specialIO.kill) {
     state := UIntToOH(s_idle, state_num)
+    outValidReg := false.B
   } .elsewhen(state(s_idle) && in_fire) {
     state := Mux(hasSubnormal, UIntToOH(s_pre_0, state_num), UIntToOH(s_pre_1, state_num))
   } .elsewhen(state(s_pre_0)) {
     state := UIntToOH(s_pre_1, state_num)
   } .elsewhen(state(s_pre_1)) {
     state := Mux(skipIter, UIntToOH(s_post_0, state_num), UIntToOH(s_iter, state_num))
+    outValidReg := skipIter
   } .elsewhen(finalIter && state(s_iter)) {
     state := UIntToOH(s_post_0, state_num)
+    outValidReg := true.B
   } .elsewhen(state(s_post_0) && out_ready) {
     state := UIntToOH(s_finish, state_num)
+    outValidReg := false.B
   } .elsewhen(state(s_finish)) {
     state := UIntToOH(s_idle, state_num)
   } .otherwise {
     state := state
   }
+
+  assert(outValidReg === state(s_post_0))
 
   val aSigNorm = Wire(UInt(precision.W))
   val aSigReg = RegEnable(Mux(state(s_idle), raw_a.sig, aSigNorm), state(s_idle) || state(s_pre_0)) // 1.xxx
