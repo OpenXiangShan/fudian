@@ -13,6 +13,9 @@ reformat:
 checkformat:
 	mill -i __.checkFormat
 
+init:
+	git submodule update --init
+
 berkeley-softfloat-3/build/Linux-x86_64-GCC/softfloat.a: berkeley-softfloat-3/.git
 	$(MAKE) -C berkeley-softfloat-3/build/Linux-x86_64-GCC SPECIALIZE_TYPE=RISCV
 
