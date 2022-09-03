@@ -34,13 +34,10 @@ class FMUL_s1_to_s2(val expWidth: Int, val precision: Int) extends Bundle {
 }
 
 class FMUL_s2_to_s3(val expWidth: Int, val precision: Int) extends Bundle {
+  val paddingBits = precision + 2
   val special_case = ValidIO(new FMUL_special_info)
+  val raw_out = Output(new RawFloat(expWidth, paddingBits + 2 * precision))
   val early_overflow = Output(Bool())
-  val prod = Output(UInt((2 * precision).W))
-  val prod_sign = Output(Bool())
-  val shift_amt = Output(UInt((expWidth + 1).W))
-  val exp_shifted = Output(UInt((expWidth + 1).W))
-  val may_be_subnormal = Output(Bool())
   val rm = Output(UInt(3.W))
 }
 
@@ -120,6 +117,7 @@ class FMUL_s1(val expWidth: Int, val precision: Int) extends Module {
 }
 
 class FMUL_s2(val expWidth: Int, val precision: Int) extends Module {
+  val paddingBits = precision + 2
   val io = IO(new Bundle() {
     val in = Flipped(new FMUL_s1_to_s2(expWidth, precision))
     val prod = Input(UInt((2 * precision).W))
@@ -128,22 +126,7 @@ class FMUL_s2(val expWidth: Int, val precision: Int) extends Module {
 
   io.out.special_case := io.in.special_case
   io.out.early_overflow := io.in.early_overflow
-  io.out.prod_sign := io.in.prod_sign
-  io.out.shift_amt := io.in.shift_amt
-  io.out.exp_shifted := io.in.exp_shifted
-  io.out.may_be_subnormal := io.in.may_be_subnormal
   io.out.rm := io.in.rm
-  io.out.prod := io.prod
-
-}
-
-class FMUL_s3(val expWidth: Int, val precision: Int) extends Module {
-  val io = IO(new Bundle() {
-    val in = Flipped(new FMUL_s2_to_s3(expWidth, precision))
-    val result = Output(UInt((expWidth + precision).W))
-    val fflags = Output(UInt(5.W))
-    val to_fadd = Output(new FMULToFADD(expWidth, precision))
-  })
 
   /*
     prod = xx.xxx...xxx
@@ -156,11 +139,11 @@ class FMUL_s3(val expWidth: Int, val precision: Int) extends Module {
       prod_exp = a.exp + b.exp - bias + paddingBits
     we assume product <- [2, 4) at first
  */
-  val paddingBits = precision + 2
+
   val padding = 0.U(paddingBits.W)
 
   val rm = io.in.rm
-  val prod = io.in.prod
+  val prod = io.prod
   val prod_sign = io.in.prod_sign
   val shift_amt = io.in.shift_amt
   val exp_shifted = io.in.exp_shifted
@@ -172,6 +155,27 @@ class FMUL_s3(val expWidth: Int, val precision: Int) extends Module {
 
   val exp_pre_round = Mux(exp_is_subnormal, 0.U, Mux(no_extra_shift, exp_shifted, exp_shifted - 1.U))
   val sig_shifted = Mux(no_extra_shift, sig_shifted_raw, Cat(sig_shifted_raw.tail(1), 0.U(1.W)))
+
+  io.out.raw_out.sign := prod_sign
+  io.out.raw_out.exp := exp_pre_round
+  io.out.raw_out.sig := sig_shifted
+
+}
+
+class FMUL_s3(val expWidth: Int, val precision: Int) extends Module {
+  val paddingBits = precision + 2
+  val io = IO(new Bundle() {
+    val in = Flipped(new FMUL_s2_to_s3(expWidth, precision))
+    val result = Output(UInt((expWidth + precision).W))
+    val fflags = Output(UInt(5.W))
+    val to_fadd = Output(new FMULToFADD(expWidth, precision))
+  })
+
+    val rm = io.in.rm
+    val prod_sign = io.in.raw_out.sign
+
+  val exp_pre_round = io.in.raw_out.exp
+  val sig_shifted = io.in.raw_out.sig
 
   val raw_in = Wire(new RawFloat(expWidth, precision + 3))
   raw_in.sign := prod_sign
