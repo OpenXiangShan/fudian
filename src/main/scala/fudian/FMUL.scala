@@ -36,7 +36,7 @@ class FMUL_s1_to_s2(val expWidth: Int, val precision: Int) extends Bundle {
 class FMUL_s2_to_s3(val expWidth: Int, val precision: Int) extends Bundle {
   val paddingBits = precision + 2
   val special_case = ValidIO(new FMUL_special_info)
-  val raw_out = Output(new RawFloat(expWidth, paddingBits + 2 * precision))
+  val raw_out = Output(new RawFloat(expWidth + 1, paddingBits + 2 * precision))
   val early_overflow = Output(Bool())
   val rm = Output(UInt(3.W))
 }
