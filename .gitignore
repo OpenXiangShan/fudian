@@ -5,4 +5,6 @@ out/
 build/
 test_run_dir
 testfloat_gen
-
+.bloop/
+.metals/
+.vscode/
