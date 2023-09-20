@@ -132,15 +132,16 @@ object SignExt {
   }
 }
 
-class FDIV(val expWidth: Int, val precision: Int) extends Module {
-  val io = IO(new Bundle() {
-    val a, b = Input(UInt((expWidth + precision).W))
-    val rm = Input(UInt(3.W))
-    val result = Output(UInt((expWidth + precision).W))
-    val fflags = Output(UInt(5.W))
-    val specialIO = new FDIVSpecialIO
-  })
+class FDIVIO(val expWidth: Int, val precision: Int) extends Bundle {
+  val a, b = Input(UInt((expWidth + precision).W))
+  val rm = Input(UInt(3.W))
+  val result = Output(UInt((expWidth + precision).W))
+  val fflags = Output(UInt(5.W))
+  val specialIO = new FDIVSpecialIO
+}
 
+class FDIV(val expWidth: Int, val precision: Int) extends Module {
+  val io = IO(new FDIVIO(expWidth, precision))
 
   val isSqrt = io.specialIO.isSqrt
   val in_valid = io.specialIO.in_valid
@@ -315,8 +316,8 @@ class FDIV(val expWidth: Int, val precision: Int) extends Module {
   // post_1
   val r = Mux(sqrtReg, SignExt(sqrtModule.io.rem, itn_len+1), SignExt(divModule.io.rem, itn_len+1)) // TODO fix this
   val qFinal = Mux(r.head(1).asBool, quotM1Iter, quotIter) //
-  val sticky = (r.orR()) || (needShiftReg && qFinal(0)) // if non-zero remainder( which must be positive), we
-  val round = Mux(needShiftReg, qFinal(1).asBool(), qFinal(0).asBool)
+  val sticky = (r.orR) || (needShiftReg && qFinal(0)) // if non-zero remainder( which must be positive), we
+  val round = Mux(needShiftReg, qFinal(1).asBool, qFinal(0).asBool)
   val rounder = Module(new RoundingUnit(precision-1))
   rounder.io.in := Mux(needShiftReg, qFinal(precision, 2), qFinal(precision-1, 1))
   rounder.io.stickyIn := sticky

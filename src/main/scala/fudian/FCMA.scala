@@ -33,10 +33,7 @@ class FCMA(val expWidth: Int, val precision: Int) extends Module {
 }
 
 object FCMA extends App {
-  override def main(args: Array[String]): Unit = {
-    (new ChiselStage).execute(args, Seq(
-      ChiselGeneratorAnnotation(() => new FCMA(11, 53))
-    ))
-  }
+  (new ChiselStage).execute(args, Seq(
+    ChiselGeneratorAnnotation(() => new FCMA(11, 53))
+  ))
 }
-
