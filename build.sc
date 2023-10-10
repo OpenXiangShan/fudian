@@ -5,11 +5,11 @@ import scalafmt._
 import coursier.maven.MavenRepository
 
 val defaultVersions = Map(
-  "chisel3" -> "3.5.0",
-  "chisel3-plugin" -> "3.5.0",
-  "scala" -> "2.12.13",
-  "chiseltest" -> "latest.integration",
-  "scalatest" -> "3.2.7"
+  "chisel3" -> "3.6.0",
+  "chisel3-plugin" -> "3.6.0",
+  "scala" -> "2.13.10",
+  "chiseltest" -> "0.6.2",
+  "scalatest" -> "3.2.15"
 )
 
 def getVersion(dep: String, org: String = "edu.berkeley.cs", cross: Boolean = false) = {
