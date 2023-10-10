@@ -55,7 +55,7 @@ $(1)_emu = $$(BUILD_DIR)/$(2)_$(3)/$(2).emu
 $(1)_v = $$(BUILD_DIR)/$(2)_$(3)/$(2).v
 
 $$($(1)_v): $$(SCALA_SRC)
-	mill -i fudian.runMain fudian.Generator --fu $(2) --ftype $(3) --full-stacktrace -td $$(@D)
+	mill -i fudian.tests.runMain fudian.Generator --fu $(2) --ftype $(3) --full-stacktrace -td $$(@D)
 
 $$($(1)_emu): $$($(1)_v) $$(CSRC_DIR)/$(2)_Test.cpp
 	verilator --cc --exe $$^ -Mdir $$(@D) -o $$@ --build
