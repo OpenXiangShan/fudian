@@ -22,7 +22,7 @@ class FCMA(val expWidth: Int, val precision: Int) extends Module {
 
   val mul_to_fadd = fmul.io.to_fadd
   fadd.io.a := Cat(io.c, 0.U(precision.W))
-  fadd.io.b := mul_to_fadd.fp_prod.asUInt()
+  fadd.io.b := mul_to_fadd.fp_prod.asUInt
   fadd.io.b_inter_valid := true.B
   fadd.io.b_inter_flags := mul_to_fadd.inter_flags
   fadd.io.rm := io.rm
