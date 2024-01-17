@@ -376,8 +376,8 @@ class DivIterModule(len: Int, itn_len: Int) extends Module {
   val (a, d) = (io.a, io.d)
   val lookup = d(len-2, len-4)
 
-  val smallerThanM1 = (wsInit.head(7)(4, 0) + MuxLookup(lookup(2,0), 0.U, mLookupTable.minus_m(2))).head(1).asBool
-  val smallerThanM2 = (wsInit.head(7)(4, 0) + MuxLookup(lookup(2,0), 0.U, mLookupTable.minus_m(3))).head(1).asBool
+  val smallerThanM1 = (wsInit.head(7)(4, 0) + MuxLookup(lookup(2,0), 0.U)(mLookupTable.minus_m(2))).head(1).asBool
+  val smallerThanM2 = (wsInit.head(7)(4, 0) + MuxLookup(lookup(2,0), 0.U)(mLookupTable.minus_m(3))).head(1).asBool
 
   val qInit = Mux(smallerThanM1, UIntToOH(quot_0), Mux(smallerThanM2, UIntToOH(quot_pos_1), UIntToOH(quot_pos_2)))
 
@@ -422,7 +422,7 @@ class DivIterModule(len: Int, itn_len: Int) extends Module {
 
   // Give values to the regs and wires above...
   mNeg := VecInit(Seq.tabulate(4){i =>
-    Cat(SignExt(MuxLookup(lookup(2,0), 0.U, mLookupTable.minus_m(i)), 10), 0.U(2.W))
+    Cat(SignExt(MuxLookup(lookup(2,0), 0.U)(mLookupTable.minus_m(i)), 10), 0.U(2.W))
   }) // (2, 4) -> (6, 6)
 
   udNeg := VecInit(
@@ -548,7 +548,7 @@ class SqrtIterModule(len: Int, itn_len: Int) extends Module { // itn_len == len 
   val lookup = Mux(j === 1.U, "b101".U, aHeadReg)(2, 0)
 
   val mNeg = VecInit(Seq.tabulate(4){i =>
-    Cat(SignExt(MuxLookup(lookup(2,0), 0.U, mLookupTable2.minus_m(i)), 7), 0.U(1.W))
+    Cat(SignExt(MuxLookup(lookup(2,0), 0.U)(mLookupTable2.minus_m(i)), 7), 0.U(1.W))
   }) // (2, 4) * 2 -> (4, 4)
 
   // Debug Utils
