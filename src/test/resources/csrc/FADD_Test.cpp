@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
     uint64_t error = 0;
 
     module.io_rm = rm;
-    while(scanf("%lx %lx %lx %lx", &a, &b, &ref_sum, &ref_fflags) != EOF){
+    while(scanf("%llx %llx %llx %llx", &a, &b, &ref_sum, &ref_fflags) != EOF){
         module.io_a = a;
         module.io_b = b;
         module.clock = 0;
@@ -52,13 +52,13 @@ int main(int argc, char* argv[]) {
         dut_sum = module.io_result;
         dut_fflags = module.io_fflags;
         if( (dut_sum != ref_sum || dut_fflags != ref_fflags) ){
-            printf("[%ld] input: %lx %lx\n", cnt, a, b);
-            printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_sum, dut_fflags);
-            printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_sum, ref_fflags);
+            printf("[%llu] input: %llx %llx\n", cnt, a, b);
+            printf("[%llu] dut_sum: %llx dut_fflags: %llx\n", cnt, dut_sum, dut_fflags);
+            printf("[%llu] ref_sum: %llx ref_fflags: %llx\n", cnt, ref_sum, ref_fflags);
             error++;
             return -1;
         }
         cnt++;
     }
-    printf("cnt = %ld error=%ld\n", cnt, error);
+    printf("cnt = %llu error=%llu\n", cnt, error);
 }

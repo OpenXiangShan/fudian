@@ -51,9 +51,9 @@ int main(int argc, char* argv[]) {
     uint64_t cnt = 0;
     uint64_t error = 0;
 
-    while(scanf("%lx", &a) != EOF){
-        if (op == 0) scanf("%lx", &b);
-        scanf("%lx %lx", &ref_result, &ref_fflags);
+    while(scanf("%llx", &a) != EOF){
+        if (op == 0) scanf("%llx", &b);
+        scanf("%llx %llx", &ref_result, &ref_fflags);
         module.clock = 0;
         module.io_a = a;
         if (op == 0) module.io_b = b;
@@ -82,15 +82,15 @@ int main(int argc, char* argv[]) {
         dut_result = module.io_result;
         dut_fflags = module.io_fflags;
         if( (dut_result != ref_result || dut_fflags != ref_fflags) ){
-            if (op == 0) printf("[%ld] input: %lx %lx\n", cnt, a, b);
-                else printf("[%ld] input: %lx\n", cnt, a);
-            printf("[%ld] dut_sum: %lx dut_fflags: %lx\n", cnt, dut_result, dut_fflags);
-            printf("[%ld] ref_sum: %lx ref_fflags: %lx\n", cnt, ref_result, ref_fflags);
+            if (op == 0) printf("[%llu] input: %llx %llx\n", cnt, a, b);
+                else printf("[%llu] input: %llx\n", cnt, a);
+            printf("[%llu] dut_sum: %llx dut_fflags: %llx\n", cnt, dut_result, dut_fflags);
+            printf("[%llu] ref_sum: %llx ref_fflags: %lx\n", cnt, ref_result, ref_fflags);
             error++;
 //            tfp->close();
             return -1;
         }
         cnt++;
     }
-    printf("cnt = %ld error=%ld\n", cnt, error);
+    printf("cnt = %llu error=%llu\n", cnt, error);
 }
