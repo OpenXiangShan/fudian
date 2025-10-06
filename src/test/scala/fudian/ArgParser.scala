@@ -8,7 +8,7 @@ object ArgParser {
       |--fu <name>
       |--ftype <32|64>
       |
-      |example: --fu FADD -ftype 64 -td build
+      |example: --fu FADD -ftype 64 --target-dir build
       |""".stripMargin
 
   /**

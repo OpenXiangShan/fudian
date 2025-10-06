@@ -1,29 +1,31 @@
 compile:
-	mill -i fudian.compile
+	./mill -i fudian.compile
 
 bsp:
-	mill -i mill.bsp.BSP/install
+	./mill -i mill.bsp.BSP/install
 
 clean:
 	rm -rf ./build
 
 reformat:
-	mill -i __.reformat
+	./mill -i __.reformat
 
 checkformat:
-	mill -i __.checkFormat
+	./mill -i __.checkFormat
 
 init:
 	git submodule update --init
 
-berkeley-softfloat-3/build/Linux-x86_64-GCC/softfloat.a: berkeley-softfloat-3/.git
-	$(MAKE) -C berkeley-softfloat-3/build/Linux-x86_64-GCC SPECIALIZE_TYPE=RISCV
+SOFTFLOAT_TARGET ?= Linux-x86_64-GCC
 
-berkeley-testfloat-3/build/Linux-x86_64-GCC/testfloat_gen: berkeley-testfloat-3/.git \
-                                                           berkeley-softfloat-3/build/Linux-x86_64-GCC/softfloat.a
-	$(MAKE) -C berkeley-testfloat-3/build/Linux-x86_64-GCC SPECIALIZE_TYPE=RISCV
+berkeley-softfloat-3/build/$(SOFTFLOAT_TARGET)/softfloat.a: berkeley-softfloat-3/.git
+	$(MAKE) -C berkeley-softfloat-3/build/$(SOFTFLOAT_TARGET) SPECIALIZE_TYPE=RISCV
 
-TEST_FLOAT_GEN = berkeley-testfloat-3/build/Linux-x86_64-GCC/testfloat_gen
+berkeley-testfloat-3/build/$(SOFTFLOAT_TARGET)/testfloat_gen: berkeley-testfloat-3/.git \
+                                                           berkeley-softfloat-3/build/$(SOFTFLOAT_TARGET)/softfloat.a
+	$(MAKE) -C berkeley-testfloat-3/build/$(SOFTFLOAT_TARGET) SPECIALIZE_TYPE=RISCV
+
+TEST_FLOAT_GEN = berkeley-testfloat-3/build/$(SOFTFLOAT_TARGET)/testfloat_gen
 SEED ?= $(shell shuf -i 1-100000 -n 1)
 TEST_FLOAT_OPTS = -tininessafter -exact -level 1 -seed $(SEED)
 BUILD_DIR = $(abspath ./build)
@@ -52,10 +54,10 @@ all_tests: fadd_tests fmul_tests fma_tests fp_to_int_tests int_to_fp_tests fcmp_
 define test_template
 
 $(1)_emu = $$(BUILD_DIR)/$(2)_$(3)/$(2).emu
-$(1)_v = $$(BUILD_DIR)/$(2)_$(3)/$(2).v
+$(1)_v = $$(BUILD_DIR)/$(2)_$(3)/$(2).sv
 
 $$($(1)_v): $$(SCALA_SRC)
-	mill -i fudian.tests.runMain fudian.Generator --fu $(2) --ftype $(3) --full-stacktrace -td $$(@D)
+	./mill -i fudian.tests.runMain fudian.Generator --fu $(2) --ftype $(3) -o $$(@D)
 
 $$($(1)_emu): $$($(1)_v) $$(CSRC_DIR)/$(2)_Test.cpp
 	verilator --cc --exe $$^ -Mdir $$(@D) -o $$@ --build

@@ -1,7 +1,8 @@
 package fudian
 
+import circt.stage.ChiselStage
 import chisel3.RawModule
-import chisel3.stage.{ChiselGeneratorAnnotation, ChiselStage}
+import chisel3.stage.ChiselGeneratorAnnotation
 
 object Generator extends App {
 
@@ -32,10 +33,9 @@ object Generator extends App {
   }
 
   val (module, expWidth, precision, firrtlOpts) = ArgParser.parse(args)
-  (new ChiselStage).execute(
-      firrtlOpts,
-      Seq(
-        ChiselGeneratorAnnotation(getModuleGen(module, expWidth, precision))
-      )
-    )
+  ChiselStage.emitSystemVerilog(
+   getModuleGen(module, expWidth, precision)(),
+    Array("--throw-on-first-error", "--full-stacktrace"),
+    firrtlOpts ++ Array("--split-verilog"),
+  )
 }
